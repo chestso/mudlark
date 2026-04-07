@@ -12,6 +12,8 @@ Makefile.in
 /m4/libtool.m4
 /m4/lt*.m4
 
+/version
+
 # Build artifacts
 *.o
 *.a

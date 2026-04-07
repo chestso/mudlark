@@ -2,7 +2,9 @@ dnl configure.ac - Autoconf configuration for bloom-telnet
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([bloom-telnet], [0.1.0], [thomasc1971@hotmail.com])
+AC_INIT([bloom-telnet],
+        m4_esyscmd_s([cat version 2>/dev/null || echo "0.0.0-unknown"]),
+        [thomasc1971@hotmail.com])
 AC_CONFIG_SRCDIR([src/telnet.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([build-aux])
