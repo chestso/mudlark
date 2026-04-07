@@ -7,6 +7,7 @@ AC_INIT([bloom-telnet],
         [thomasc1971@hotmail.com])
 AC_CONFIG_SRCDIR([src/telnet.c])
 AC_CONFIG_HEADERS([config.h])
+AC_DEFINE_UNQUOTED([BLOOM_TELNET_VERSION], ["$PACKAGE_VERSION"], [Version string])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 

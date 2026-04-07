@@ -5,6 +5,10 @@
  * telnet I/O, tick timers, resize, and stdin post-processing.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gc.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +29,11 @@
 #include <bloom-boba/cmd.h>
 #include <bloom-boba/runtime.h>
 #include <bloom-lisp/lisp.h>
+
+/* Version fallback if not defined by autoconf */
+#ifndef BLOOM_TELNET_VERSION
+#define BLOOM_TELNET_VERSION "unknown"
+#endif
 
 /* Global state */
 static Telnet *g_telnet = NULL;

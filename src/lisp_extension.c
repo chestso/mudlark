@@ -1,8 +1,12 @@
 /* Lisp extension implementation for bloom-telnet */
 
-#include "lisp_extension.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "../include/telnet.h"
 #include "../include/terminal_caps.h"
+#include "lisp_extension.h"
 #include "logging.h"
 #include "path_utils.h"
 #include "session.h"
@@ -17,6 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+/* Version fallback if not defined by autoconf */
+#ifndef BLOOM_TELNET_VERSION
+#define BLOOM_TELNET_VERSION "unknown"
+#endif
 
 /* Registered statusbar pointer for statusbar builtins */
 static TuiStatusBar *registered_statusbar = NULL;
