@@ -1,20 +1,35 @@
 ;; practice.lisp - Practice mode for Carrion Fields MUD
 ;;
 ;; This script was created for Carrion Fields MUD (https://carrionfields.net/)
-;;
-;; Usage:
-;;   /p <command>             Start practicing a single command
-;;   /p <cmd1> | <cmd2>      Alternate between two commands
-;;   /p stop                  Stop practicing
-;;   /p add <pattern>         Add a retry pattern
-;;   /p remove <pattern>      Remove a retry pattern
-;;   /p patterns              List retry patterns
-;;   /p                       Show status
-;;
-;; Features:
-;;   Retries on failure, alternates commands each send
-;;   Sleeps when mana low, wakes at 100%
-;;   Quits on hunger/thirst damage
+;; ============================================================================
+;; HELP TEXT
+;; ============================================================================
+(defvar *practice-usage*
+  "/p <command>             Start practicing a command
+/p <cmd1> | <cmd2>      Alternate between commands
+/p stop                  Stop practicing
+/p add <pattern>         Add a retry pattern
+/p remove <pattern>      Remove a retry pattern
+/p patterns              List retry patterns
+/p                       Show status"
+  "Usage text for /practice command.")
+
+(defvar *practice-features*
+  "Features
+Retries on failure
+Alternates commands with | delimiter
+Sleeps when mana low, wakes at 100%
+Quits on hunger/thirst damage
+
+Variables
+*practice-mana-pattern*            Regex extracting mana% from prompt
+*practice-mana-threshold*          Mana% below which to sleep
+*practice-sleep-interval*          Seconds between sleep-mode prompt refreshes
+*practice-sleep-pattern*           Message triggering immediate sleep
+*practice-retry-patterns*          Patterns that trigger a retry
+*practice-hunger-thirst-pattern*   Regex matching hunger/thirst damage"
+  "Features and variables section for /practice help.")
+
 ;; ============================================================================
 ;; CONFIGURATION
 ;; ============================================================================
@@ -30,8 +45,7 @@
 (defvar *practice-sleep-pattern* "You don't have enough mana."
   "Pattern that triggers immediate sleep mode (spell too costly).")
 
-(defvar *practice-retry-patterns*
-  '("You failed." "You lost your concentration." "You are already")
+(defvar *practice-retry-patterns* nil
   "List of patterns that trigger a retry of the practice command.")
 
 (defvar *practice-hunger-thirst-pattern* "Your (hunger|thirst) \\w+ you"
@@ -245,7 +259,8 @@
          (if *practice-sleep-mode* " (sleeping)" "")))
        (practice-echo "Not practicing. Use /p <command> to start.")))))
 
-(register-slash-command "/practice" practice-handler "Practice mode" :usage
- "/p <command>             Start practicing a command\n/p <cmd1> | <cmd2>      Alternate between commands\n/p stop                  Stop practicing\n/p add <pattern>         Add a retry pattern\n/p remove <pattern>      Remove a retry pattern\n/p patterns              List retry patterns\n/p                       Show status"
+(register-slash-command "/practice" practice-handler "Practice mode"
+ :usage
+ *practice-usage*
  :section
- "Features\nRetries on failure\nAlternates commands with | delimiter\nSleeps when mana low, wakes at 100%\nQuits on hunger/thirst damage")
+ *practice-features*)
