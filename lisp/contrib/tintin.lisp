@@ -59,9 +59,18 @@
          (concat "Error: Circular alias detected or depth limit ("
           (number->string *tintin-max-alias-depth*) ") exceeded\r\n"))
         cmd)
-      ;; Filter hook — may consume (e.g. /greet)
+      ;; Filter hook — may consume (e.g. /greet). When consumed inside an
+      ;; alias expansion, still echo the expanded leaf so the user can see
+      ;; what their alias produced regardless of which hook swallowed it.
       (if (not (run-filter-hook 'user-input-hook cmd))
-        ""
+        (progn
+          (when (> *tintin-alias-depth* 0)
+            (let ((server-cmd
+                   (tintin-expand-speedwalk
+                    (tintin-expand-variables-fast cmd))))
+              (when (not (string=? server-cmd ""))
+                (terminal-echo (concat server-cmd "\r\n")))))
+          "")
         ;; Check if it's a # command
         (if (tintin-is-command? cmd)
           ;; TinTin++ command - dispatch (main.c handles echoing)
