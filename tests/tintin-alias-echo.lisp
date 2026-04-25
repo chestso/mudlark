@@ -71,5 +71,37 @@
 
 (print "Test 3 passed: top-level consumed input is not re-echoed")
 
+;; ============================================================================
+;; Test 4: Expansion is echoed BEFORE the consuming handler's own output
+;; ============================================================================
+(set! *tintin-alias-depth* 0)
+(set! *echoed* '())
+(hash-set! *tintin-aliases* "b" (list "/baz arg"))
+
+(defun handler-with-output (text)
+  (if (and (string? text) (string-prefix? "/baz" text))
+    (progn (terminal-echo "[handler] running\r\n") nil)
+    text))
+(add-hook 'user-input-hook 'handler-with-output 5)
+
+(tintin-process-input "b")
+
+;; Assert that "/baz arg" was echoed strictly before "[handler] running"
+(let ((expansion-pos -1)
+      (handler-pos -1))
+  (do ((i 0 (+ i 1)) (rest *echoed* (cdr rest))) ((null? rest))
+    (cond
+      ((string-contains? (car rest) "/baz arg") (set! expansion-pos i))
+      ((string-contains? (car rest) "[handler] running")
+       (set! handler-pos i))))
+  (assert-true (>= expansion-pos 0) "Expansion was echoed")
+  (assert-true (>= handler-pos 0) "Handler output was echoed")
+  (assert-true (< expansion-pos handler-pos)
+    "Expansion echo precedes handler output"))
+
+(remove-hook 'user-input-hook 'handler-with-output)
+
+(print "Test 4 passed: expansion echoes before handler output")
+
 (print "")
 (print "All alias-echo tests passed!")
