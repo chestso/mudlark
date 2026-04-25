@@ -39,6 +39,14 @@
 (assert-nil (tintin-extract-braced "no braces" 0)
  "extract-braced returns nil when no braces")
 
+;; Unclosed brace at top level
+(assert-equal (tintin-extract-braced "{unclosed" 0) 'unclosed
+ "extract-braced returns 'unclosed when opening brace has no match")
+
+;; Unclosed nested brace
+(assert-equal (tintin-extract-braced "{a{b}c" 0) 'unclosed
+ "extract-braced returns 'unclosed when nested closer is missing")
+
 ;; ============================================================================
 ;; tintin-parse-arguments
 ;; ============================================================================
@@ -48,3 +56,11 @@
  '("Det") "parse-arguments single unbraced")
 (assert-equal (tintin-parse-arguments "#highlight {red} {orc}" 2)
  '("{red}" "{orc}") "parse-arguments two braced")
+
+;; Unclosed brace propagates as 'unclosed
+(assert-equal (tintin-parse-arguments "#alias a {bad" 2) 'unclosed
+ "parse-arguments returns 'unclosed when a braced arg is unclosed")
+(assert-equal (tintin-parse-arguments "#highlight {red} {bad" 2) 'unclosed
+ "parse-arguments returns 'unclosed when later braced arg is unclosed")
+(assert-nil (tintin-parse-arguments "#alias" 2)
+ "parse-arguments still returns nil when there are simply too few args")

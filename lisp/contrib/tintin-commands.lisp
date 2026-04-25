@@ -59,6 +59,12 @@
   "Echo a command confirmation, suppressed during #read file loading."
   (if (not *tintin-reading-file*) (terminal-echo msg)))
 
+(defun tintin-echo (msg)
+  (terminal-echo (concat "\r\n\033[36m[🐈 Tintin]\033[0m " msg "\r\n")))
+
+(defun tintin-error-echo (msg)
+  (terminal-echo (concat "\r\n\033[31m[🐈 Tintin]\033[0m " msg "\r\n")))
+
 ;; ============================================================================
 ;; COMMAND HANDLERS
 ;; ============================================================================
@@ -409,10 +415,10 @@
   (if (<= max-count 0)
     nil
     (let ((args (tintin-parse-arguments input max-count)))
-      (if args
-        args
-        ;; Try with one fewer argument
-        (tintin-try-parse-arguments input (- max-count 1))))))
+      (cond
+        ((eq? args 'unclosed) 'unclosed)
+        (args args)
+        (#t (tintin-try-parse-arguments input (- max-count 1)))))))
 
 ;; Dispatch a TinTin++ command using metadata-driven approach
 ;; cmd-name: matched command name (e.g., "alias")
@@ -432,8 +438,11 @@
             (handler '())
             ;; Has arguments - try parsing with max count down to 1
             (let ((args (tintin-try-parse-arguments input arg-count)))
-              (if args
-                (handler args)
-                (progn
-                  (terminal-echo (concat "Syntax error: " syntax-help "\r\n"))
-                  "")))))))))
+              (cond
+                ((eq? args 'unclosed)
+                 (tintin-error-echo
+                  (concat "Syntax error: unclosed brace in: " input))
+                 "")
+                (args (handler args))
+                (#t (tintin-error-echo (concat "Syntax error: " syntax-help))
+                 "")))))))))

@@ -97,7 +97,7 @@
                 (if (= depth 0)
                   ;; Return text INCLUDING braces (from brace-start to end-pos)
                   (cons (substring str brace-start end-pos) end-pos)
-                  nil))
+                  'unclosed))
                (let ((ch (string-ref str end-pos)))
                  (if (char=? ch #\{)
                    (set! depth (+ depth 1))
@@ -173,7 +173,8 @@
   ```"
   (let ((start-pos 1) ; Start after #
         (args '())
-        (success #t))
+        (success #t)
+        (reason nil))
     ;; Step 1: Skip whitespace after #
     (do ()
       ((or (>= start-pos (length input))
@@ -188,7 +189,8 @@
     ;; Step 3: Parse N arguments using mixed format
     ;; Each argument can be braced or unbraced independently
     (do ((i 0 (+ i 1)))
-      ((or (>= i n) (not success)) (if success (reverse args) nil))
+      ((or (>= i n) (not success))
+       (cond (success (reverse args)) (reason reason) (#t nil)))
       ;; Skip whitespace before this argument
       (do ()
         ((or (>= start-pos (length input))
@@ -202,10 +204,12 @@
           (if is-braced
             ;; Extract braced argument (preserves braces)
             (let ((arg-data (tintin-extract-braced input start-pos)))
-              (if arg-data
-                (progn (set! args (cons (car arg-data) args))
-                  (set! start-pos (cdr arg-data)))
-                (set! success #f)))
+              (cond
+                ((eq? arg-data 'unclosed)
+                 (set! reason 'unclosed) (set! success #f))
+                (arg-data (set! args (cons (car arg-data) args))
+                 (set! start-pos (cdr arg-data)))
+                (#t (set! success #f))))
             ;; Extract unbraced token
             ;; For the last argument, read to end of string instead of stopping at space
             (let ((is-last-arg (= i (- n 1))))

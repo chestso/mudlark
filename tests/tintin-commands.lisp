@@ -530,6 +530,43 @@
 
 (print "Test 31 passed: #config speedwalk diagonals")
 
+;; ============================================================================
+;; Test 32: tintin-echo and tintin-error-echo styling
+;; ============================================================================
+(reset-aliases)
+(tintin-echo "hello")
+(assert-true (some-echoed-contains "[🐈 Tintin]") "tintin-echo includes tag")
+(assert-true (some-echoed-contains "\033[36m") "tintin-echo uses cyan")
+(assert-true (some-echoed-contains "hello") "tintin-echo includes message")
+
+(reset-aliases)
+(tintin-error-echo "oops")
+(assert-true (some-echoed-contains "[🐈 Tintin]") "tintin-error-echo includes tag")
+(assert-true (some-echoed-contains "\033[31m") "tintin-error-echo uses red")
+(assert-true (some-echoed-contains "oops") "tintin-error-echo includes message")
+
+(print "Test 32 passed: tintin-echo / tintin-error-echo styling")
+
+;; ============================================================================
+;; Test 33: unclosed brace surfaces a red parse error (no alias fallthrough)
+;; ============================================================================
+(reset-aliases)
+(tintin-process-command "#alias a {/scan all {bad")
+(assert-true (some-echoed-contains "unclosed brace")
+ "unclosed-brace dispatch echoes 'unclosed brace'")
+(assert-true (some-echoed-contains "\033[31m")
+ "unclosed-brace dispatch echoes in red")
+(assert-false (some-echoed-contains "Alias 'a")
+ "unclosed-brace dispatch does NOT fall through to alias lookup")
+
+;; Valid alias still creates (no regression)
+(reset-aliases)
+(tintin-process-command "#alias b {kill orc}")
+(assert-true (some-echoed-contains "Alias 'b' created")
+ "valid alias still creates")
+
+(print "Test 33 passed: unclosed-brace dispatch")
+
 ;; Cleanup
 (set! *tintin-custom-colors* (make-hash-table))
 (set! *tintin-aliases* (make-hash-table))
