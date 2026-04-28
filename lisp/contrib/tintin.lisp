@@ -59,13 +59,16 @@
          (concat "Error: Circular alias detected or depth limit ("
           (number->string *tintin-max-alias-depth*) ") exceeded\r\n"))
         cmd)
-      (progn
+      (let ((alias-match
+             (and (not (tintin-is-command? cmd)) (tintin-try-alias cmd))))
         ;; Echo alias-expanded leaves BEFORE any hook or dispatch runs so the
         ;; user always sees what their alias produced, in order — even when a
         ;; user-input-hook consumes it or the handler echoes its own output.
-        ;; Skip #commands; their output (or lack thereof) belongs to the
-        ;; dispatcher, not to the alias-expansion echo channel.
-        (when (and (> *tintin-alias-depth* 0) (not (tintin-is-command? cmd)))
+        ;; Skip #commands (dispatcher owns its output) and skip cmds that
+        ;; themselves alias-expand (the recursion will echo their leaves).
+        (when
+          (and (> *tintin-alias-depth* 0) (not (tintin-is-command? cmd))
+               (not alias-match))
           (let ((server-cmd
                  (tintin-expand-speedwalk
                   (tintin-expand-variables-fast cmd))))
@@ -90,14 +93,12 @@
                        (concat "Unknown TinTin++ command: #" cmd-name "\r\n"))
                       "")
                     (tintin-dispatch-command matched cmd)))))
-            ;; Try one level of alias expansion
-            (let ((expanded (tintin-try-alias cmd)))
-              (if (not expanded)
-                ;; No alias — expand speedwalk + variables, return to server
-                (tintin-expand-speedwalk
-                 (tintin-expand-variables-fast cmd))
-                ;; Alias matched — return expanded commands (preserves ordering)
-                (tintin-expand-alias expanded)))))))))
+            (if (not alias-match)
+              ;; No alias — expand speedwalk + variables, return to server
+              (tintin-expand-speedwalk
+               (tintin-expand-variables-fast cmd))
+              ;; Alias matched — return expanded commands (preserves ordering)
+              (tintin-expand-alias alias-match))))))))
 
 (defun tintin-process-command (cmd)
   "Process a single TinTin++ command or server command.
