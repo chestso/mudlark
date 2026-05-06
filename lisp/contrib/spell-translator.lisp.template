@@ -249,7 +249,14 @@
 (add-hook 'telnet-input-transform-hook 'spell-translator-filter)
 
 ;; Startup message
-(script-echo "Spell translator active" :section
- "Commands\n(spell-add \"garbled\" \"correct\")\n(spell-remove \"garbled\")\n(spell-add-known \"word\")\n(spell-remove-known \"word\")"
+(script-echo "Spell translator active"
  :section
- "Data\n*spell-dictionary* — garbled word overrides\n*known-spell-words* — words that skip translation")
+ "Commands
+(spell-add \"garbled\" \"correct\")
+(spell-remove \"garbled\")
+(spell-add-known \"word\")
+(spell-remove-known \"word\")"
+ :section
+ "Data
+*spell-dictionary* — garbled word overrides
+*known-spell-words* — words that skip translation")

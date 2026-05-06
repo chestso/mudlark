@@ -78,12 +78,22 @@ spellcheck_misspelled() {
 		}
 		return dp[la, lb]
 	}
-	function compound_match(word, sugs,    n, parts, i, joined) {
+	function compound_match(word, sugs,    n, parts, i, joined, m, frags, j, ok) {
+		# Only accept a compound suggestion as recovery when every part is
+		# at least 3 letters. Hunspell loves to split unknown words into
+		# fragments like "brag h" or "lo cote" that rejoin to the input
+		# but are not real compound words.
 		n = split(sugs, parts, ", ")
 		for (i = 1; i <= n; i++) {
 			joined = parts[i]
 			gsub(/[ \-]/, "", joined)
-			if (tolower(joined) == tolower(word)) return 1
+			if (tolower(joined) != tolower(word)) continue
+			ok = 1
+			m = split(parts[i], frags, /[ \-]/)
+			for (j = 1; j <= m; j++) {
+				if (length(frags[j]) < 3) { ok = 0; break }
+			}
+			if (ok) return 1
 		}
 		return 0
 	}
@@ -133,8 +143,14 @@ tr ' ' '\n' <"$UTT_ALL" | sort -u >"$ALL_WORDS"
 spellcheck_misspelled <"$ALL_WORDS" | awk -F'	' '{print $1}' | sort -u >"$BAD_WORDS"
 echo "Non-dictionary words (after compound recovery): $(wc -l <"$BAD_WORDS")" >&2
 
+# An utterance is "garbled" only when *every* word is non-English. A single
+# real English word (or MUD-shorthand like "invis") means the utterance is
+# already readable to the player and should not be cipher-translated.
 awk 'NR==FNR { bad[$1] = 1; next }
-     { for (i = 1; i <= NF; i++) if ($i in bad) { print; next } }
+     { all_bad = 1
+       for (i = 1; i <= NF; i++) if (!($i in bad)) { all_bad = 0; break }
+       if (all_bad && NF > 0) print
+     }
 ' "$BAD_WORDS" "$UTT_ALL" >"$UTT"
 echo "Garbled utterances: $(wc -l <"$UTT")" >&2
 
@@ -168,19 +184,40 @@ function lev(a, b,    la, lb, i, j, cost, mn, dp) {
     return dp[la, lb]
 }
 BEGIN {
-    # Hardcoded overrides — garbled→correct mappings the algorithm
+    # Hardcoded overrides: garbled -> correct mappings the algorithm
     # cannot infer because either:
     #   (a) the correct word is game-specific and not in hunspell
     #       (e.g. archon, kaubris)
     #   (b) hunspell ranks a wrong suggestion first and Levenshtein
     #       cannot disambiguate between equidistant candidates
     #       (e.g. confute vs confuse vs conjure for "confure")
-    overrides["abraqpai"]      = "archon"       # game term, hunspell suggests "arson"
-    overrides["gpaszgpuyh"]    = "shapeshift"   # game spell, hunspell suggests "shoplift"
-    overrides["hpkadawahjfouq"] = "thaumaturgic" # game spell, hunspell suggests "liturgical"
-    overrides["qaiyjcandus"]   = "conjure"      # "conjure elemental" (hunspell ties at confute/confuse/conjure)
-    overrides["tkadabfug"]     = "kaubris"      # game spell, hunspell suggests "hubris"
-    overrides["zawsufuq"]      = "vampiric"     # classic spell, hunspell suggests "empiric"
+    overrides["abraq"]          = "arc"           # cipher: olc; from "zzggag abraq" -> "vessas arc"
+    overrides["abraqpai"]       = "archon"        # hunspell suggests "arson"
+    overrides["aecandusiar"]    = "adrenal"       # cipher: odrenol; hunspell suggests "retinol"
+    overrides["aepzguzz"]       = "adhesive"      # cipher: odhesiee; hunspell suggests "adhesion"
+    overrides["bcandusahp"]     = "breath"        # "frost breath"; hunspell ties broth/breath at Lev 1
+    overrides["bragh"]          = "blast"         # "psionic blast"; hunspell ranks "bloat" first
+    overrides["gpaszgpuyh"]     = "shapeshift"    # hunspell suggests "shoplift"
+    overrides["gqarzg"]         = "scales"        # "scales of the dragon"; hunspell ranks "soles" first
+    overrides["hpkadawahjfouq"] = "thaumaturgic"  # hunspell suggests "liturgical"
+    overrides["iaza"]           = "nova"          # cipher: noeo
+    overrides["oculoqarquyl"]   = "decalcify"     # cipher: decolcify; hunspell suggests "decollete"
+    overrides["paghz"]          = "haste"         # cipher: hoste; hunspell ranks "host" first
+    overrides["pzah"]           = "heat"          # "channel heat"; hunspell ranks "hot" first
+    overrides["qaiyjcandus"]    = "conjure"       # "conjure elemental"; hunspell ties at confute/confuse/conjure
+    overrides["qpaui"]          = "chain"         # "chain lightning"; hunspell ties chin/coin/chain at Lev 1
+    overrides["ruzuio"]         = "living"        # "armor of living bone"; hunspell ties lining/living at Lev 1
+    overrides["tkadabfug"]      = "kaubris"       # hunspell suggests "hubris"
+    overrides["uiygruzuguai"]   = "infravision"   # hunspell suggests "infrasonic"
+    overrides["uizug"]          = "invis"         # cipher: ineis; MUD spell shorthand
+    overrides["waraugz"]        = "malaise"       # cipher: moloise; hunspell suggests "seismology"
+    overrides["wugrzae"]        = "mislead"       # hunspell ties at misled/mislead
+    overrides["wunsohar"]       = "mental"        # "mental knife"; hunspell ties at menthol/mental
+    overrides["xzatunso"]       = "weaken"        # cipher: weoken; hunspell ranks "woken" first
+    overrides["yarh"]           = "jolt"          # "mental jolt"; cipher: folt (y is the j-form, not f)
+    overrides["yrawzg"]         = "flames"        # cipher: flomes
+    overrides["zawsufuq"]       = "vampiric"      # hunspell suggests "empiric"
+    overrides["zzggag"]         = "vessas"        # cipher: eessos; from "zzggag abraq" -> "vessas arc"
 }
 NR==FNR {
     sugs = $2
@@ -189,31 +226,35 @@ NR==FNR {
     next
 }
 $2 in miss {
-    # Pick the corrected word in this priority order:
-    #   1. Hardcoded override for this garbled word
-    #   2. The sole hunspell suggestion (no ambiguity, take it even when
-    #      Levenshtein is large — the cipher output is garbage anyway)
-    #   3. Top hunspell suggestion if Levenshtein <= 1 from cipher output
-    #      (with multiple suggestions, larger distances often indicate
-    #      a game-specific real word like "archon" that hunspell does
-    #      not know — keep the cipher output in that case)
-    #   4. Fall through to the cipher output unchanged
+    # Decide whether to emit a dictionary entry, and what to map to.
+    # Only emit entries we are confident about — the runtime cipher
+    # already runs on every word, so a missing dict entry just falls
+    # through to cipher. Bad dict entries actively poison the output.
+    #
+    # Priority:
+    #   1. Hardcoded override for this garbled word -> use it
+    #   2. Top hunspell suggestion at Levenshtein <= 1 -> high confidence
+    #   3. Multi-suggestion consensus with top at Levenshtein <= 2 ->
+    #      rules out cipher-correct words being clobbered
+    #   4. Otherwise -> skip (the cipher output is either correct already
+    #      or unrecoverable; either way no good dict entry to add)
     sugs = miss[$2]
+    emit = 0
     if ($1 in overrides) {
         corrected = overrides[$1]
-    } else if (sugs == "(no suggestions)") {
-        corrected = $2
-    } else {
+        emit = 1
+    } else if (sugs != "(no suggestions)") {
         n = split(sugs, parts, ", ")
-        if (n == 1) {
+        d = lev(tolower($2), tolower(parts[1]))
+        if (d <= 1) {
             corrected = parts[1]
-        } else if (lev(tolower($2), tolower(parts[1])) <= 1) {
+            emit = 1
+        } else if (n > 1 && d <= 2) {
             corrected = parts[1]
-        } else {
-            corrected = $2
+            emit = 1
         }
     }
-    printf "%-22s -> %-22s  hunspell: %s\n", $1, corrected, sugs
+    if (emit) printf "%-22s -> %-22s  hunspell: %s\n", $1, corrected, sugs
 }
 ' "$MISS" "$PAIRS" | sort
 

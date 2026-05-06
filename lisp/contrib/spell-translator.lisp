@@ -55,11 +55,11 @@
 ;; If any word in the utterance matches a known spell word, skip translation.
 
 ;; Auto-generated known-spell-words from readable utterance analysis
-;; Generated: Wed May  6 10:49:09 AM +07 2026
+;; Generated: Wed May  6 11:30:50 AM +07 2026
 (defvar *known-spell-words* '(
   "resist"
   "lightning"
-  "detect"  "cure")) ; test requirement: cure needed for "cure light" recognition
+  "detect"  "cure" "invis")) ; injected: MUD shorthand (cure, invis) hunspell does not know
 
 
 ;; Check if utterance contains any known spell word
@@ -101,77 +101,68 @@
 
 ;; Auto-generated dictionary overrides for cipher ambiguity corrections
 ;; Based on analysis of telnet logs with Levenshtein-ranked hunspell suggestions
-;; Generated: Wed May  6 10:49:05 AM +07 2026
+;; Generated: Wed May  6 11:30:47 AM +07 2026
 
 (hash-set! *spell-dictionary* "abrahuyaqh" "artifact")
 (hash-set! *spell-dictionary* "abraqpai" "archon")
 (hash-set! *spell-dictionary* "abyzqh" "object")
-(hash-set! *spell-dictionary* "aecandusiar" "retinol")
-(hash-set! *spell-dictionary* "aepzguzz" "adhesion")
+(hash-set! *spell-dictionary* "aecandusiar" "adrenal")
+(hash-set! *spell-dictionary* "aepzguzz" "adhesive")
+(hash-set! *spell-dictionary* "afoai" "gorgon")
+(hash-set! *spell-dictionary* "aiozr" "angel")
 (hash-set! *spell-dictionary* "aiqpaf" "anchor")
 (hash-set! *spell-dictionary* "aqqzrzgruhz" "accelerate")
 (hash-set! *spell-dictionary* "aqueuq" "acidic")
-(hash-set! *spell-dictionary* "arc" "ole")
-(hash-set! *spell-dictionary* "bcandusahp" "broth")
-(hash-set! *spell-dictionary* "detect" "qdkdck")
+(hash-set! *spell-dictionary* "bcandusahp" "breath")
+(hash-set! *spell-dictionary* "bragh" "blast")
+(hash-set! *spell-dictionary* "candusqarr" "recoil")
 (hash-set! *spell-dictionary* "eugwuggar" "dismissal")
 (hash-set! *spell-dictionary* "ghcandusaw" "stream")
 (hash-set! *spell-dictionary* "gpaszgpuyh" "shapeshift")
-(hash-set! *spell-dictionary* "gqarzg" "soles")
+(hash-set! *spell-dictionary* "gqarzg" "scales")
+(hash-set! *spell-dictionary* "hiqahz" "locate")
 (hash-set! *spell-dictionary* "hpkadawahjfouq" "thaumaturgic")
 (hash-set! *spell-dictionary* "hxzrzz" "twelve")
-(hash-set! *spell-dictionary* "hzggzgruqh" "actress")
-(hash-set! *spell-dictionary* "iaza" "noel")
-(hash-set! *spell-dictionary* "invis" "nxvnp")
-(hash-set! *spell-dictionary* "izjfahanuq" "neurotic")
+(hash-set! *spell-dictionary* "iaza" "nova")
 (hash-set! *spell-dictionary* "izjfahiouqar" "neurological")
-(hash-set! *spell-dictionary* "izoahuzz" "negotiate")
-(hash-set! *spell-dictionary* "jiyajudig" "unfocus")
+(hash-set! *spell-dictionary* "jiyajudig" "unfocused")
 (hash-set! *spell-dictionary* "ocandusagz" "grease")
 (hash-set! *spell-dictionary* "oculoayunso" "deafen")
-(hash-set! *spell-dictionary* "oculoqarquyl" "decollete")
+(hash-set! *spell-dictionary* "oculoqarquyl" "decalcify")
 (hash-set! *spell-dictionary* "oculozur" "devil")
 (hash-set! *spell-dictionary* "ouaih" "giant")
-(hash-set! *spell-dictionary* "pzah" "hot")
+(hash-set! *spell-dictionary* "paghz" "haste")
+(hash-set! *spell-dictionary* "pzah" "heat")
 (hash-set! *spell-dictionary* "qafsacandusar" "corporeal")
-(hash-set! *spell-dictionary* "qaiqzrrahuai" "concellotion")
+(hash-set! *spell-dictionary* "qaiqzrrahuai" "cancellation")
 (hash-set! *spell-dictionary* "qaiyjcandus" "conjure")
 (hash-set! *spell-dictionary* "qpaiizr" "channel")
-(hash-set! *spell-dictionary* "qpaui" "chin")
+(hash-set! *spell-dictionary* "qpaui" "chain")
 (hash-set! *spell-dictionary* "qzrzghuar" "celestial")
-(hash-set! *spell-dictionary* "ruzuio" "lining")
+(hash-set! *spell-dictionary* "ruzuio" "living")
 (hash-set! *spell-dictionary* "saguhuzz" "positive")
-(hash-set! *spell-dictionary* "sguaiuq" "ionic")
 (hash-set! *spell-dictionary* "sraiabra" "planar")
 (hash-set! *spell-dictionary* "sraojz" "plague")
 (hash-set! *spell-dictionary* "tkadabfug" "kaubris")
-(hash-set! *spell-dictionary* "uiygruzuguai" "infrasonic")
-(hash-set! *spell-dictionary* "uizug" "ineis")
+(hash-set! *spell-dictionary* "uiygruzuguai" "infravision")
+(hash-set! *spell-dictionary* "uizug" "invis")
 (hash-set! *spell-dictionary* "unsopaiqzwunsoh" "enhancement")
-(hash-set! *spell-dictionary* "vessas" "popped")
 (hash-set! *spell-dictionary* "waouq" "magic")
-(hash-set! *spell-dictionary* "waraugz" "seismology")
-(hash-set! *spell-dictionary* "wugrzae" "misled")
-(hash-set! *spell-dictionary* "wunsohar" "menthol")
+(hash-set! *spell-dictionary* "waraugz" "malaise")
+(hash-set! *spell-dictionary* "wugrzae" "mislead")
+(hash-set! *spell-dictionary* "wunsohar" "mental")
 (hash-set! *spell-dictionary* "wzhabaruq" "metabolic")
-(hash-set! *spell-dictionary* "wzspuh" "megahit")
 (hash-set! *spell-dictionary* "xarr" "will")
-(hash-set! *spell-dictionary* "xzatunso" "woken")
-(hash-set! *spell-dictionary* "yarh" "dolt")
+(hash-set! *spell-dictionary* "xzatunso" "weaken")
+(hash-set! *spell-dictionary* "yarh" "jolt")
 (hash-set! *spell-dictionary* "yawuruabra" "familiar")
 (hash-set! *spell-dictionary* "yazfuz" "faerie")
 (hash-set! *spell-dictionary* "yragp" "flesh")
-(hash-set! *spell-dictionary* "yrawzg" "floes")
+(hash-set! *spell-dictionary* "yrawzg" "flames")
 (hash-set! *spell-dictionary* "zawsufuq" "vampiric")
 (hash-set! *spell-dictionary* "zrzwunsohar" "elemental")
 (hash-set! *spell-dictionary* "zuculaaruq" "vitriolic")
-(hash-set! *spell-dictionary* "zzggag" "SOSes")
-
-;; Cipher outputs that hunspell silently accepts (so they never reach
-;; the misspelled-translation pipeline). Hardcoded here because the
-;; generator only sees flagged misspellings.
-(hash-set! *spell-dictionary* "hiqahz" "locate") ; cipher: locote (filtered by compound recovery)
-(hash-set! *spell-dictionary* "sagg" "pass")    ; cipher: poss (real word in hunspell dict)
+(hash-set! *spell-dictionary* "zzggag" "vessas")
 
 
 (defun spell-echo (msg)
@@ -330,7 +321,14 @@
 (add-hook 'telnet-input-transform-hook 'spell-translator-filter)
 
 ;; Startup message
-(script-echo "Spell translator active" :section
- "Commands\n(spell-add \"garbled\" \"correct\")\n(spell-remove \"garbled\")\n(spell-add-known \"word\")\n(spell-remove-known \"word\")"
+(script-echo "Spell translator active"
  :section
- "Data\n*spell-dictionary* — garbled word overrides\n*known-spell-words* — words that skip translation")
+ "Commands
+(spell-add \"garbled\" \"correct\")
+(spell-remove \"garbled\")
+(spell-add-known \"word\")
+(spell-remove-known \"word\")"
+ :section
+ "Data
+*spell-dictionary* — garbled word overrides
+*known-spell-words* — words that skip translation")

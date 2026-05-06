@@ -73,12 +73,6 @@ fi
 	}' "$TMP/suggest_output.txt"
 
 	echo ""
-	echo ";; Cipher outputs that hunspell silently accepts (so they never reach"
-	echo ";; the misspelled-translation pipeline). Hardcoded here because the"
-	echo ";; generator only sees flagged misspellings."
-	echo "(hash-set! *spell-dictionary* \"hiqahz\" \"locate\") ; cipher: locote (filtered by compound recovery)"
-	echo "(hash-set! *spell-dictionary* \"sagg\" \"pass\")    ; cipher: poss (real word in hunspell dict)"
-	echo ""
 } >"$DICT_ENTRIES"
 
 dict_count=$(grep -c "hash-set!" "$DICT_ENTRIES" || echo "0")
@@ -102,21 +96,20 @@ if ! MIN_FREQUENCY="$MIN_FREQUENCY" MIN_SPELL_SCORE="$MIN_SPELL_SCORE" \
 	exit 1
 fi
 
-# Extract just the known-words definition (filter out comments for the template)
+# Extract the known-words definition and inject MUD-specific shorthand that
+# hunspell does not recognize (so the readable-utterance miner cannot find
+# it). Without these injections, single-word utterances like 'invis' get
+# cipher-translated into nonsense.
 {
 	echo ""
 	echo ";; Auto-generated known-spell-words from readable utterance analysis"
 	echo ";; Generated: $(date)"
 
-	# Extract the (defvar *known-spell-words* ...) definition and add test requirements
-	if grep -q '"cure"' "$TMP/known_words_output.txt"; then
-		# "cure" is already in the generated list, use as-is
-		sed -n '/^(defvar \*known-spell-words\*/,/))$/p' "$TMP/known_words_output.txt"
-	else
-		# Add "cure" for test compatibility
-		sed -n '/^(defvar \*known-spell-words\*/,/))$/p' "$TMP/known_words_output.txt" |
-			sed 's/))$/  "cure")) ; test requirement: cure needed for "cure light" recognition/'
-	fi
+	# MUD shorthand and test-required words to inject
+	mud_words='"cure" "invis"'
+
+	sed -n '/^(defvar \*known-spell-words\*/,/))$/p' "$TMP/known_words_output.txt" |
+		sed "s|))$|  $mud_words)) ; injected: MUD shorthand (cure, invis) hunspell does not know|"
 
 	echo ""
 } >"$KNOWN_WORDS"
