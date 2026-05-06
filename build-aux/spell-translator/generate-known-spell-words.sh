@@ -3,14 +3,14 @@
 # Analyzes readable (non-garbled) utterances to find words that need
 # *known-spell-words* coverage to prevent translation.
 #
-# Usage: tests/generate-known-spell-words.sh [log-dir] [max-words]
+# Usage: build-aux/spell-translator/generate-known-spell-words.sh [log-dir] [max-words]
 # Default log-dir: ~/telnet-logs
 # Default max-words: 10
 
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 LOGDIR="${1:-$HOME/telnet-logs}"
 MAX_WORDS="${2:-10}"
 
@@ -90,18 +90,22 @@ spellcheck_misspelled() {
 }
 
 # ============================================================================
-# Step 1: Extract all utterances (reuse from spell-translator-suggest.sh)
+# Step 1: Extract all utterances and dedup with occurrence counts.
+# Each line is "<count><TAB><utterance>"; preserving the count is critical
+# because frequency is what ranks candidates downstream — collapsing with
+# `sort -u` would map 138 same-class 'armor' utterances to a single line.
 # ============================================================================
 grep -hoE "utters the words, '[^']+'" "$LOGDIR"/*.log 2>/dev/null \
 	| sed -E "s/^utters the words, '(.+)'$/\1/" \
-	| sort -u >"$UTT_ALL"
+	| sort | uniq -c | sed -E 's/^[[:space:]]*([0-9]+)[[:space:]]+/\1\t/' >"$UTT_ALL"
 echo "Extracted $(wc -l <"$UTT_ALL") unique utterances" >&2
 
 # ============================================================================
-# Step 2: Identify readable utterances (all words pass hunspell)
+# Step 2: Identify readable utterances (all words pass hunspell). Each line
+# preserves the upstream count column so step 4 can weight word frequency.
 # ============================================================================
 {
-	while IFS= read -r utterance; do
+	while IFS=$'\t' read -r count utterance; do
 		all_readable=true
 		# Check each word in utterance
 		for word in $utterance; do
@@ -113,8 +117,8 @@ echo "Extracted $(wc -l <"$UTT_ALL") unique utterances" >&2
 				break
 			fi
 		done
-		# If all words are readable, keep this utterance
-		[ "$all_readable" = true ] && echo "$utterance"
+		# If all words are readable, keep this utterance with its count
+		[ "$all_readable" = true ] && printf '%s\t%s\n' "$count" "$utterance"
 	done <"$UTT_ALL"
 } >"$READABLE_UTT"
 echo "Readable utterances: $(wc -l <"$READABLE_UTT")" >&2
@@ -130,19 +134,27 @@ fi
 # Step 3: Extract current *spell-dictionary* values to avoid duplicates
 # ============================================================================
 cd "$PROJECT_ROOT"
-"$REPL" tests/extract-spell-dict-values.lisp >"$DICT_VALUES" 2>/dev/null || {
+"$REPL" build-aux/spell-translator/extract-spell-dict-values.lisp >"$DICT_VALUES" 2>/dev/null || {
 	echo "ERROR: Failed to extract spell-dictionary values" >&2
 	exit 1
 }
 echo "Current spell-dictionary values: $(wc -l <"$DICT_VALUES")" >&2
 
 # ============================================================================
-# Step 4: Extract candidate words from readable utterances
+# Step 4: Extract candidate words from readable utterances, weighted by the
+# count column so frequency reflects how often the word was actually said.
 # ============================================================================
-tr ' ' '\n' <"$READABLE_UTT" | \
-	tr '[:upper:]' '[:lower:]' | \
-	grep -v '^[[:space:]]*$' | \
-	sort | uniq -c | sort -nr >"$ALL_WORDS"
+awk -F'\t' '
+{
+	count = $1
+	n = split(tolower($2), words, " ")
+	for (i = 1; i <= n; i++) {
+		if (words[i] != "") word_freq[words[i]] += count
+	}
+}
+END {
+	for (w in word_freq) printf "%d %s\n", word_freq[w], w
+}' "$READABLE_UTT" | sort -nr >"$ALL_WORDS"
 
 # Filter out words covered by spell-dictionary values and common English
 awk -v min_freq="$MIN_FREQUENCY" '
@@ -151,11 +163,11 @@ function is_common_english(word) {
 }
 
 function is_covered_by_dict(word,    i) {
-	# Check if word is covered by any dictionary value
+	# Coverage means the dictionary already produces this exact word as a
+	# translation. Substring overlap does not — short translation values
+	# like "ar"/"mor" are real 2-3 letter words, not coverage proxies.
 	for (i = 1; i <= dict_count; i++) {
-		if (index(word, dict_values[i]) > 0 || index(dict_values[i], word) > 0) {
-			return 1
-		}
+		if (tolower(word) == tolower(dict_values[i])) return 1
 	}
 	return 0
 }
@@ -266,8 +278,9 @@ generate_output() {
 		echo ";; ... $(expr $(wc -l <"$SCORED") - 20) additional candidates available"
 	fi
 
-	# Coverage analysis
-	covered_utterances=$(awk '
+	# Coverage analysis: weighted by occurrence count from the count column
+	# so the percentage reflects spoken frequency, not distinct phrasings.
+	covered_utterances=$(awk -F'\t' '
 		BEGIN {
 			word_count = 0
 			while ((getline < "'"$TMP"'/top_words.tmp") > 0) {
@@ -279,8 +292,9 @@ generate_output() {
 			total = 0
 		}
 		{
-			total++
-			utterance = tolower($0)
+			count = $1
+			total += count
+			utterance = tolower($2)
 			covered = 0
 			for (i = 1; i <= word_count; i++) {
 				if (index(utterance, top_words[i]) > 0) {
@@ -288,7 +302,7 @@ generate_output() {
 					break
 				}
 			}
-			if (covered) coverage++
+			if (covered) coverage += count
 		}
 		END {
 			printf "%.1f", (total > 0) ? (coverage * 100.0 / total) : 0.0

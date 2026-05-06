@@ -5,13 +5,13 @@
 # 2. Auto-generated *spell-dictionary* entries
 # 3. Auto-generated *known-spell-words* list
 #
-# Usage: tests/build-spell-translator.sh [log-dir]
+# Usage: build-aux/spell-translator/build-spell-translator.sh [log-dir]
 # Default log-dir: ~/telnet-logs
 
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 LOGDIR="${1:-$HOME/telnet-logs}"
 
 TEMPLATE="$PROJECT_ROOT/lisp/contrib/spell-translator.lisp.template"
@@ -96,20 +96,22 @@ if ! MIN_FREQUENCY="$MIN_FREQUENCY" MIN_SPELL_SCORE="$MIN_SPELL_SCORE" \
 	exit 1
 fi
 
-# Extract the known-words definition and inject MUD-specific shorthand that
-# hunspell does not recognize (so the readable-utterance miner cannot find
-# it). Without these injections, single-word utterances like 'invis' get
-# cipher-translated into nonsense.
+# Extract the known-words definition and inject spells the miner cannot
+# recover from current logs:
+#   invis  - hunspell rejects it, so the readable-utterance gate drops every
+#            utterance containing it
+#   cure   - not present in current logs; injected preemptively so cleric
+#            same-class utterances are recognized once they appear
 {
 	echo ""
 	echo ";; Auto-generated known-spell-words from readable utterance analysis"
 	echo ";; Generated: $(date)"
 
-	# MUD shorthand and test-required words to inject
+	# Spells the miner cannot recover from logs (see comment above)
 	mud_words='"cure" "invis"'
 
 	sed -n '/^(defvar \*known-spell-words\*/,/))$/p' "$TMP/known_words_output.txt" |
-		sed "s|))$|  $mud_words)) ; injected: MUD shorthand (cure, invis) hunspell does not know|"
+		sed "s|))$|  $mud_words)) ; injected: invis (hunspell-rejected), cure (not yet in logs)|"
 
 	echo ""
 } >"$KNOWN_WORDS"

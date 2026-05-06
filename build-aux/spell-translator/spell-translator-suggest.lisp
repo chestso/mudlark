@@ -1,10 +1,11 @@
-;; tests/spell-translator-suggest.lisp - For each unique garbled word from
-;; the input file (one utterance per line, already filtered to garbled-only by
-;; the shell wrapper), emit "<garbled-word>\t<algorithmic-translation>" with
-;; *spell-dictionary* cleared. The shell wrapper spell-checks the translation
-;; column with hunspell to surface candidates for *spell-dictionary*.
+;; build-aux/spell-translator/spell-translator-suggest.lisp - For each unique
+;; garbled word from the input file (one utterance per line, already filtered
+;; to garbled-only by the shell wrapper), emit
+;; "<garbled-word>\t<algorithmic-translation>" with *spell-dictionary* cleared.
+;; The shell wrapper spell-checks the translation column with hunspell to
+;; surface candidates for *spell-dictionary*.
 ;;
-;; Driven by tests/spell-translator-suggest.sh.
+;; Driven by build-aux/spell-translator/spell-translator-suggest.sh.
 
 (load "tests/test-helpers.lisp")
 (load "lisp/contrib/spell-translator.lisp")
@@ -15,7 +16,7 @@
   (hash-remove! *spell-dictionary* (car keys)))
 
 (if (null? *command-line-args*)
-  (error "Usage: bloom-repl tests/spell-translator-suggest.lisp -- <utterance-file>"))
+  (error "Usage: bloom-repl build-aux/spell-translator/spell-translator-suggest.lisp -- <utterance-file>"))
 
 (define *utterance-file* (car *command-line-args*))
 (define *raw* (read-file-raw *utterance-file*))

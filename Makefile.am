@@ -74,3 +74,10 @@ bear:
 	}
 	$(MAKE) clean
 	bear --output $(top_srcdir)/compile_commands.json -- $(MAKE)
+
+# Spell-translator regeneration — re-mines ~/telnet-logs/ and rewrites
+# lisp/contrib/spell-translator.lisp from its template. Override the log
+# directory with `make spell-translator LOGDIR=/path/to/logs`.
+.PHONY: spell-translator
+spell-translator:
+	$(top_srcdir)/build-aux/spell-translator/build-spell-translator.sh $(LOGDIR)

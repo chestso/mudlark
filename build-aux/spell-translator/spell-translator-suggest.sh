@@ -5,13 +5,13 @@
 # garbled source and hunspell's suggestions. Output is the working list of
 # candidates to add to lisp/contrib/spell-translator.lisp's *spell-dictionary*.
 #
-# Usage: tests/spell-translator-suggest.sh [log-dir]
+# Usage: build-aux/spell-translator/spell-translator-suggest.sh [log-dir]
 # Default log-dir: ~/telnet-logs
 
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 LOGDIR="${1:-$HOME/telnet-logs}"
 
 if [ ! -d "$LOGDIR" ]; then
@@ -157,7 +157,7 @@ echo "Garbled utterances: $(wc -l <"$UTT")" >&2
 # Step 2: Lisp emits "garbled<TAB>algorithmic-translation" per unique garbled
 # word, *spell-dictionary* cleared.
 cd "$PROJECT_ROOT"
-"$REPL" tests/spell-translator-suggest.lisp -- "$UTT" | sort -u >"$PAIRS"
+"$REPL" build-aux/spell-translator/spell-translator-suggest.lisp -- "$UTT" | sort -u >"$PAIRS"
 echo "Translated $(wc -l <"$PAIRS") unique garbled words" >&2
 
 # Step 3: spell-check the translation column with the same compound-aware

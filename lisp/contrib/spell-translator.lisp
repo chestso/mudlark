@@ -55,12 +55,16 @@
 ;; If any word in the utterance matches a known spell word, skip translation.
 
 ;; Auto-generated known-spell-words from readable utterance analysis
-;; Generated: Wed May  6 01:34:47 PM +07 2026
-(defvar *known-spell-words* '(
-  "resist"
-  "lightning"
-  "detect"  "cure" "invis")) ; injected: MUD shorthand (cure, invis) hunspell does not know
-
+;; Generated: Wed May  6 07:02:54 PM +07 2026
+(defvar *known-spell-words*
+  '("resist"
+    "armor"
+    "fire"
+    "bloodlust"
+    "lightning"
+    "protection"
+    "identify"
+    "dispel" "cure" "invis")) ; injected: invis (hunspell-rejected), cure (not yet in logs)
 
 ;; Check if utterance contains any known spell word
 (defun known-spell? (phrase)
@@ -98,11 +102,9 @@
 ;; Users can add entries with (spell-add "garbled" "correct")
 (defvar *spell-dictionary* (make-hash-table))
 
-
 ;; Auto-generated dictionary overrides for cipher ambiguity corrections
 ;; Based on analysis of telnet logs with Levenshtein-ranked hunspell suggestions
-;; Generated: Wed May  6 01:34:43 PM +07 2026
-
+;; Generated: Wed May  6 07:02:50 PM +07 2026
 (hash-set! *spell-dictionary* "abrahuyaqh" "artifact")
 (hash-set! *spell-dictionary* "abraq" "arc")
 (hash-set! *spell-dictionary* "abraqpai" "archon")
@@ -166,7 +168,6 @@
 (hash-set! *spell-dictionary* "zrzwunsohar" "elemental")
 (hash-set! *spell-dictionary* "zuculaaruq" "vitriolic")
 (hash-set! *spell-dictionary* "zzggag" "vessas")
-
 
 (defun spell-echo (msg)
   "Echo a spell translator status message to the terminal."
@@ -279,7 +280,9 @@
 ;;     has matched. Char-scanning the rest of the line avoids regex
 ;;     compilation on the hot path entirely.
 (define *spell-utter-gate* "utters the words,")
+
 (define *spell-utter-marker* "utters the words, '")
+
 (define *spell-utter-marker-len* (length *spell-utter-marker*))
 
 ;; Muted magic purple color for translations
@@ -298,31 +301,33 @@
       (if (null? idx)
         text
         (let* ((tlen (length text))
-             (quote-start (+ idx *spell-utter-marker-len*))
-             (after (substring text quote-start tlen))
-             (close-rel (string-index after "'")))
-        ;; Need a closing quote followed by a period. Server format is
-        ;; always "...words, 'garbled'." — bail out otherwise.
-        (if (null? close-rel)
-          text
-          (let* ((quote-end (+ quote-start close-rel))
-                 (after-quote (+ quote-end 1)))
-            (if (or (>= after-quote tlen)
+               (quote-start (+ idx *spell-utter-marker-len*))
+               (after (substring text quote-start tlen))
+               (close-rel (string-index after "'")))
+          ;; Need a closing quote followed by a period. Server format is
+          ;; always "...words, 'garbled'." — bail out otherwise.
+          (if (null? close-rel)
+            text
+            (let* ((quote-end (+ quote-start close-rel))
+                   (after-quote (+ quote-end 1)))
+              (if
+                (or (>= after-quote tlen)
                     (not (char=? (string-ref text after-quote) #\.)))
-              text
-              (let ((garbled (substring text quote-start quote-end)))
-                (if (known-spell? garbled)
-                  text
-                  (let ((translated (translate-garbled-phrase garbled)))
-                    (if
-                      (string=? (string-downcase translated)
-                                (string-downcase garbled))
-                      text
-                      ;; Reassemble: <prefix>'</prefix> + " (translation)" + ".<suffix>"
-                      (string-append
-                        (substring text 0 after-quote)
-                        " " *spell-color* "(" translated ")" *spell-color-reset*
-                        (substring text after-quote tlen))))))))))))))
+                text
+                (let ((garbled (substring text quote-start quote-end)))
+                  (if (known-spell? garbled)
+                    text
+                    (let ((translated (translate-garbled-phrase garbled)))
+                      (if
+                        (string=? (string-downcase translated)
+                         (string-downcase garbled))
+                        text
+                        ;; Reassemble: <prefix>'</prefix> + " (translation)" + ".<suffix>"
+                        (string-append
+                         (substring text 0 after-quote)
+                         " " *spell-color* "(" translated ")"
+                         *spell-color-reset*
+                         (substring text after-quote tlen))))))))))))))
 
 ;; Filter function for telnet-input-transform-hook
 ;; Splits multi-line chunks so regex-replace can't bleed across lines

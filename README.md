@@ -34,6 +34,17 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 
 Build output goes to `build/`.
 
+### Generated sources
+
+`lisp/contrib/spell-translator.lisp` is auto-generated from telnet logs by `build-aux/spell-translator/build-spell-translator.sh`. Regenerate it with:
+
+```bash
+make spell-translator                       # uses ~/telnet-logs/
+make spell-translator LOGDIR=/path/to/logs  # custom log directory
+```
+
+The script mines readable same-class spell utterances, ranks candidates by spoken frequency and a spell-domain score, and rewrites the file from `lisp/contrib/spell-translator.lisp.template`. Run `make format` afterwards to tidy whitespace from the sed injection step.
+
 ## Usage
 
 ```bash

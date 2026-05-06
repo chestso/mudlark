@@ -3,6 +3,8 @@
 /autom4te.cache/
 /build-aux/*
 !/build-aux/git-version.sh
+!/build-aux/spell-translator/
+!/build-aux/spell-translator/**
 /config.h*
 /config.log
 /config.status
