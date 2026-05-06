@@ -195,6 +195,7 @@ BEGIN {
     overrides["abraqpai"]       = "archon"        # hunspell suggests "arson"
     overrides["aecandusiar"]    = "adrenal"       # cipher: odrenol; hunspell suggests "retinol"
     overrides["aepzguzz"]       = "adhesive"      # cipher: odhesiee; hunspell suggests "adhesion"
+    overrides["afoai"]          = "organ"         # "disrupt organ"; cipher: orgon
     overrides["bcandusahp"]     = "breath"        # "frost breath"; hunspell ties broth/breath at Lev 1
     overrides["bragh"]          = "blast"         # "psionic blast"; hunspell ranks "bloat" first
     overrides["gpaszgpuyh"]     = "shapeshift"    # hunspell suggests "shoplift"
@@ -213,6 +214,7 @@ BEGIN {
     overrides["waraugz"]        = "malaise"       # cipher: moloise; hunspell suggests "seismology"
     overrides["wugrzae"]        = "mislead"       # hunspell ties at misled/mislead
     overrides["wunsohar"]       = "mental"        # "mental knife"; hunspell ties at menthol/mental
+    overrides["xarr"]           = "wall"          # "wall of fire"; hunspell ranks "will" first
     overrides["xzatunso"]       = "weaken"        # cipher: weoken; hunspell ranks "woken" first
     overrides["yarh"]           = "jolt"          # "mental jolt"; cipher: folt (y is the j-form, not f)
     overrides["yrawzg"]         = "flames"        # cipher: flomes

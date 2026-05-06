@@ -55,7 +55,7 @@
 ;; If any word in the utterance matches a known spell word, skip translation.
 
 ;; Auto-generated known-spell-words from readable utterance analysis
-;; Generated: Wed May  6 11:30:50 AM +07 2026
+;; Generated: Wed May  6 11:36:51 AM +07 2026
 (defvar *known-spell-words* '(
   "resist"
   "lightning"
@@ -101,14 +101,14 @@
 
 ;; Auto-generated dictionary overrides for cipher ambiguity corrections
 ;; Based on analysis of telnet logs with Levenshtein-ranked hunspell suggestions
-;; Generated: Wed May  6 11:30:47 AM +07 2026
+;; Generated: Wed May  6 11:36:47 AM +07 2026
 
 (hash-set! *spell-dictionary* "abrahuyaqh" "artifact")
 (hash-set! *spell-dictionary* "abraqpai" "archon")
 (hash-set! *spell-dictionary* "abyzqh" "object")
 (hash-set! *spell-dictionary* "aecandusiar" "adrenal")
 (hash-set! *spell-dictionary* "aepzguzz" "adhesive")
-(hash-set! *spell-dictionary* "afoai" "gorgon")
+(hash-set! *spell-dictionary* "afoai" "organ")
 (hash-set! *spell-dictionary* "aiozr" "angel")
 (hash-set! *spell-dictionary* "aiqpaf" "anchor")
 (hash-set! *spell-dictionary* "aqqzrzgruhz" "accelerate")
@@ -152,7 +152,7 @@
 (hash-set! *spell-dictionary* "wugrzae" "mislead")
 (hash-set! *spell-dictionary* "wunsohar" "mental")
 (hash-set! *spell-dictionary* "wzhabaruq" "metabolic")
-(hash-set! *spell-dictionary* "xarr" "will")
+(hash-set! *spell-dictionary* "xarr" "wall")
 (hash-set! *spell-dictionary* "xzatunso" "weaken")
 (hash-set! *spell-dictionary* "yarh" "jolt")
 (hash-set! *spell-dictionary* "yawuruabra" "familiar")
