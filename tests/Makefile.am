@@ -1,7 +1,7 @@
 # tests/Makefile.am - Test files
 
 # C tests
-check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum
+check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum
 
 test_telnet_app_SOURCES = test_telnet_app.c
 test_telnet_app_CPPFLAGS = \
@@ -39,11 +39,27 @@ test_add_hook_fixnum_LDADD = \
     $(BLOOMLISP_LIBS) \
     $(BLOOMBOBA_LIBS)
 
+test_telnet_connect_fixnum_SOURCES = test_telnet_connect_fixnum.c
+test_telnet_connect_fixnum_CPPFLAGS = \
+    -I$(top_srcdir)/src \
+    -I$(top_srcdir)/include \
+    $(BLOOMBOBA_CFLAGS)
+test_telnet_connect_fixnum_LDADD = \
+    $(top_builddir)/src/bloom_telnet-lisp_extension.o \
+    $(top_builddir)/src/bloom_telnet-session.o \
+    $(top_builddir)/src/bloom_telnet-telnet.o \
+    $(top_builddir)/src/bloom_telnet-logging.o \
+    $(top_builddir)/src/bloom_telnet-path_utils.o \
+    $(top_builddir)/src/bloom_telnet-terminal_caps.o \
+    $(BLOOMLISP_LIBS) \
+    $(BLOOMBOBA_LIBS)
+
 # Lisp tests
 TESTS = \
     test_telnet_app \
     test_event_loop \
     test_add_hook_fixnum \
+    test_telnet_connect_fixnum \
     hooks.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \

@@ -90,7 +90,7 @@ static int telnet_open_log(Telnet *t, const char *log_dir)
 
     /* Check if logging is enabled via Lisp variable */
     LispObject *enable_logging = env_lookup(
-        lisp_env, lisp_intern("*enable-telnet-logging*")->value.symbol);
+        lisp_env, LISP_SYM_VAL(lisp_intern("*enable-telnet-logging*")));
     if (!enable_logging || enable_logging == NIL ||
         !lisp_is_truthy(enable_logging)) {
         t->log_file = NULL;
@@ -106,9 +106,9 @@ static int telnet_open_log(Telnet *t, const char *log_dir)
         snprintf(eval_buf, sizeof(eval_buf), "(expand-path \"%s\")", log_dir);
         LispObject *expanded_obj = lisp_eval_string(eval_buf, lisp_env);
 
-        if (expanded_obj && expanded_obj->type == LISP_STRING) {
+        if (expanded_obj && LISP_TYPE(expanded_obj) == LISP_STRING) {
             snprintf(expanded_dir, sizeof(expanded_dir), "%s",
-                     expanded_obj->value.string);
+                     LISP_STR_VAL(expanded_obj));
         } else {
             /* Fallback if expand-path fails */
             snprintf(expanded_dir, sizeof(expanded_dir), "%s", log_dir);
@@ -290,14 +290,14 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
     Environment *env = (Environment *)lisp_x_get_environment();
     if (env) {
         LispObject *timeout_obj =
-            env_lookup(env, lisp_intern("*connect-timeout*")->value.symbol);
-        if (timeout_obj && timeout_obj->type == LISP_INTEGER) {
-            timeout_secs = (int)timeout_obj->value.integer;
+            env_lookup(env, LISP_SYM_VAL(lisp_intern("*connect-timeout*")));
+        if (timeout_obj && LISP_TYPE(timeout_obj) == LISP_INTEGER) {
+            timeout_secs = (int)LISP_INT_VAL(timeout_obj);
         }
         LispObject *retries_obj =
-            env_lookup(env, lisp_intern("*connect-max-retries*")->value.symbol);
-        if (retries_obj && retries_obj->type == LISP_INTEGER) {
-            max_retries = (int)retries_obj->value.integer;
+            env_lookup(env, LISP_SYM_VAL(lisp_intern("*connect-max-retries*")));
+        if (retries_obj && LISP_TYPE(retries_obj) == LISP_INTEGER) {
+            max_retries = (int)LISP_INT_VAL(retries_obj);
         }
     }
 
@@ -394,22 +394,22 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
     /* Enable TCP keepalive if configured via Lisp variable */
     if (env) {
         LispObject *enable_keepalive =
-            env_lookup(env, lisp_intern("*tcp-keepalive-enabled*")->value.symbol);
+            env_lookup(env, LISP_SYM_VAL(lisp_intern("*tcp-keepalive-enabled*")));
         if (enable_keepalive && enable_keepalive != NIL &&
             lisp_is_truthy(enable_keepalive)) {
             int keepalive_time = 60;
             int keepalive_interval = 10;
 
             LispObject *time_obj =
-                env_lookup(env, lisp_intern("*tcp-keepalive-time*")->value.symbol);
-            if (time_obj && time_obj->type == LISP_INTEGER) {
-                keepalive_time = (int)time_obj->value.integer;
+                env_lookup(env, LISP_SYM_VAL(lisp_intern("*tcp-keepalive-time*")));
+            if (time_obj && LISP_TYPE(time_obj) == LISP_INTEGER) {
+                keepalive_time = (int)LISP_INT_VAL(time_obj);
             }
 
             LispObject *interval_obj = env_lookup(
-                env, lisp_intern("*tcp-keepalive-interval*")->value.symbol);
-            if (interval_obj && interval_obj->type == LISP_INTEGER) {
-                keepalive_interval = (int)interval_obj->value.integer;
+                env, LISP_SYM_VAL(lisp_intern("*tcp-keepalive-interval*")));
+            if (interval_obj && LISP_TYPE(interval_obj) == LISP_INTEGER) {
+                keepalive_interval = (int)LISP_INT_VAL(interval_obj);
             }
 
 #ifdef _WIN32
@@ -475,9 +475,9 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
     const char *log_dir = "~/telnet-logs";
     if (env) {
         LispObject *log_dir_obj =
-            env_lookup(env, lisp_intern("*telnet-log-directory*")->value.symbol);
-        if (log_dir_obj && log_dir_obj->type == LISP_STRING) {
-            log_dir = log_dir_obj->value.string;
+            env_lookup(env, LISP_SYM_VAL(lisp_intern("*telnet-log-directory*")));
+        if (log_dir_obj && LISP_TYPE(log_dir_obj) == LISP_STRING) {
+            log_dir = LISP_STR_VAL(log_dir_obj);
         }
     }
     telnet_open_log(t, log_dir);
