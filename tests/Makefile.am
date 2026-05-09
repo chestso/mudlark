@@ -54,7 +54,9 @@ test_telnet_connect_fixnum_LDADD = \
     $(BLOOMLISP_LIBS) \
     $(BLOOMBOBA_LIBS)
 
-# Lisp tests
+# Test programs (C, Lisp, Python, shell). All entries are run by
+# `make check`; missing prerequisites must skip via exit 77, never silently
+# pass.
 TESTS = \
     test_telnet_app \
     test_event_loop \
@@ -72,15 +74,26 @@ TESTS = \
     tintin-alias-echo.lisp \
     tintin-action-depth.lisp \
     test-case-completion.lisp \
-    test_test_server.py
+    test_test_server.py \
+    test-shift-tab.sh
 
-TEST_EXTENSIONS = .lisp .py
+TEST_EXTENSIONS = .lisp .py .sh
 LISP_LOG_COMPILER = $(srcdir)/run-test.sh
 PY_LOG_COMPILER = python3
+SH_LOG_COMPILER = $(SHELL)
+
+# tmux-driven shell tests need the built binary to drive. Skips with exit
+# 77 if the binary is missing, but we still depend on it explicitly so a
+# top-level `make check` builds it first instead of silently skipping.
+check-local: $(top_builddir)/src/bloom-telnet
+$(top_builddir)/src/bloom-telnet:
+	$(MAKE) -C $(top_builddir)/src bloom-telnet
 
 AM_TESTS_ENVIRONMENT = \
     BLOOM_REPL="$${BLOOM_REPL:-bloom-repl}"; \
-    export BLOOM_REPL;
+    export BLOOM_REPL; \
+    BLOOM_TELNET_BIN="$(abs_top_builddir)/src/bloom-telnet"; \
+    export BLOOM_TELNET_BIN;
 
 EXTRA_DIST = \
     run-test.sh \
@@ -104,11 +117,3 @@ EXTRA_DIST = \
     test_test_server.py \
     test-shift-tab.sh
 
-# tmux-driven UI tests. Kept out of `make check` so the regular suite stays
-# portable and headless-friendly. Run explicitly with `make check-tmux`.
-# Skips cleanly if tmux isn't installed.
-check-tmux: $(top_builddir)/src/bloom-telnet
-	@BLOOM_TELNET_BIN="$(top_builddir)/src/bloom-telnet" \
-	    $(srcdir)/test-shift-tab.sh
-
-.PHONY: check-tmux
