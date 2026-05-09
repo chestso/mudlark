@@ -82,6 +82,35 @@ Once running, use these commands (prefixed with `:`):
 - `:quit` or `:q` - Exit the client
 - `:help` - Show command help
 
+## Selecting and Copying Text
+
+The viewport (the scrollback area above the input line) supports mouse and keyboard selection. Copied text goes to the system clipboard via OSC 52.
+
+### With the mouse
+
+- **Click and drag** with the left mouse button to select. Dragging past the top or bottom edge auto-scrolls.
+- **Release**, then press **M-w** (Alt-w) to copy the selection to the clipboard.
+- **Mouse wheel** scrolls the viewport.
+
+Note: the terminal's own selection (Shift-drag in most terminals) is bypassed because bloom-telnet runs in alt-screen mouse-reporting mode. Use the viewport's selection instead.
+
+### With the keyboard
+
+Press **Shift-Tab** to move focus from the input line to the viewport. Focusing the viewport automatically enters copy mode (an Emacs-style mark-and-region interface), with the cursor parked at the top-left of the visible region.
+
+| Key                              | Action                                  |
+| -------------------------------- | --------------------------------------- |
+| `C-SPC`                          | Set / toggle the mark at the cursor     |
+| Arrows / `C-n` `C-p` `C-f` `C-b` | Move the cursor                         |
+| `Home` / `End` or `C-a` / `C-e`  | Start / end of line                     |
+| `PgUp` / `PgDn` or `M-v` / `C-v` | Page up / down                          |
+| `M-<` / `M->`                    | Top / bottom of scrollback              |
+| `M-w`                            | Copy selection to clipboard, clear mark |
+| `C-g` or `Escape`                | Clear mark; if no mark, exit copy mode  |
+| `Shift-Tab`                      | Return focus to the input line          |
+
+If there is no mark, `M-w` copies the entire content line under the cursor.
+
 ## TinTin++ Scripting
 
 bloom-telnet includes a mini TinTin++ implementation so you can set up aliases, triggers, highlights, and variables without writing Lisp. Load it with `--load tintin.lisp`:
