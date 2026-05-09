@@ -178,8 +178,8 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
  * Kitty keyboard enhancements per frame, plus the cursor (delegated to
  * whichever child currently owns focus) and any pending window title.
  *
- * In viewport-focused mode the cursor is hidden until C-SPC enters
- * copy-mode (tui_viewport_cursor_pos abstains otherwise).
+ * In viewport-focused mode the cursor is shown immediately at the
+ * top-left of the visible region; C-SPC drops/clears the selection mark.
  */
 static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
 {
