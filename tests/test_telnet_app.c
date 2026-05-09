@@ -194,8 +194,8 @@ static void test_mouse_wheel_up_scrolls(void)
     int initial_offset = (int)vp->y_offset;
 
     /* Send mouse wheel up */
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_UP, TUI_MOUSE_ACTION_PRESS,
-                               1, 1);
+    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_UP, TUI_MOUSE_ACTION_PRESS, 1,
+                               1, 0);
     TuiUpdateResult result = test_app_update(app, msg);
 
     int new_offset = (int)vp->y_offset;
@@ -221,8 +221,8 @@ static void test_mouse_wheel_down_scrolls(void)
     int initial_offset = (int)vp->y_offset;
 
     /* Send mouse wheel down */
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_DOWN, TUI_MOUSE_ACTION_PRESS,
-                               1, 1);
+    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_DOWN, TUI_MOUSE_ACTION_PRESS, 1,
+                               1, 0);
     TuiUpdateResult result = test_app_update(app, msg);
 
     int new_offset = (int)vp->y_offset;
@@ -238,8 +238,8 @@ static void test_mouse_scroll_no_cmd(void)
 {
     TelnetAppModel *app = create_test_app();
 
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_UP, TUI_MOUSE_ACTION_PRESS,
-                               1, 1);
+    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_UP, TUI_MOUSE_ACTION_PRESS, 1, 1,
+                               0);
     TuiUpdateResult result = test_app_update(app, msg);
     assert(result.cmd == NULL);
 
@@ -251,7 +251,8 @@ static void test_mouse_click_no_crash(void)
 {
     TelnetAppModel *app = create_test_app();
 
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_LEFT, TUI_MOUSE_ACTION_PRESS, 5, 10);
+    TuiMsg msg =
+        tui_msg_mouse(TUI_MOUSE_LEFT, TUI_MOUSE_ACTION_PRESS, 5, 10, 0);
     TuiUpdateResult result = test_app_update(app, msg);
     assert(result.cmd == NULL);
 
