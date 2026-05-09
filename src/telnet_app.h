@@ -39,6 +39,9 @@ typedef struct
 
     int terminal_width;
     int terminal_height;
+
+    /* 0 = textinput, 1 = viewport. Shift-Tab toggles. */
+    int focused_widget;
 } TelnetAppModel;
 
 /* Custom message types for TelnetApp */

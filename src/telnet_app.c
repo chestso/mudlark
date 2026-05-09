@@ -63,6 +63,11 @@ static TuiInitResult telnet_app_init(void *cfg)
     /* Configure layout using dynamic height queries */
     telnet_app_set_terminal_size(app, app->terminal_width, app->terminal_height);
 
+    /* Initial focus: textinput. Shift-Tab toggles to viewport for copy-mode. */
+    app->focused_widget = 0;
+    tui_textinput_set_focus(app->textinput, 1);
+    tui_viewport_set_focused(app->viewport, 0);
+
     if (config) {
         if (config->prompt) {
             tui_textinput_set_prompt(app->textinput, config->prompt);
@@ -119,10 +124,18 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
         return tui_update_result_none();
     }
 
-    /* Route key messages to textinput (it always has focus in this simple model)
-     */
+    /* Route key messages based on focused widget. */
     if (msg.type == TUI_MSG_KEY_PRESS) {
-        /* Handle page up/down at app level (viewport scrolling) */
+        /* Shift-Tab toggles focus between textinput and viewport. */
+        if (msg.data.key.key == TUI_KEY_TAB &&
+            (msg.data.key.mods & TUI_MOD_SHIFT)) {
+            app->focused_widget ^= 1;
+            tui_textinput_set_focus(app->textinput, app->focused_widget == 0);
+            tui_viewport_set_focused(app->viewport, app->focused_widget == 1);
+            return tui_update_result_none();
+        }
+
+        /* Page up/down scroll the viewport regardless of focus. */
         if (msg.data.key.key == TUI_KEY_PAGE_UP) {
             telnet_app_page_up(app);
             return tui_update_result_none();
@@ -131,11 +144,16 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
             return tui_update_result_none();
         }
 
-        /* Handle F-keys: dispatch to Lisp via fkey-hook */
+        /* F-keys dispatch to Lisp regardless of focus. */
         if (msg.data.key.key >= TUI_KEY_F1 && msg.data.key.key <= TUI_KEY_F12) {
             int fkey_num = msg.data.key.key - TUI_KEY_F1 + 1;
             lisp_x_call_fkey_hook(fkey_num);
             return tui_update_result_none();
+        }
+
+        if (app->focused_widget == 1) {
+            return tui_viewport_component()->update((TuiModel *)app->viewport,
+                                                    msg);
         }
 
         TuiUpdateResult result = tui_textinput_update(app->textinput, msg);

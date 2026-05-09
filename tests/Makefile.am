@@ -101,4 +101,14 @@ EXTRA_DIST = \
     tintin-alias-echo.lisp \
     tintin-action-depth.lisp \
     test-case-completion.lisp \
-    test_test_server.py
+    test_test_server.py \
+    test-shift-tab.sh
+
+# tmux-driven UI tests. Kept out of `make check` so the regular suite stays
+# portable and headless-friendly. Run explicitly with `make check-tmux`.
+# Skips cleanly if tmux isn't installed.
+check-tmux: $(top_builddir)/src/bloom-telnet
+	@BLOOM_TELNET_BIN="$(top_builddir)/src/bloom-telnet" \
+	    $(srcdir)/test-shift-tab.sh
+
+.PHONY: check-tmux
