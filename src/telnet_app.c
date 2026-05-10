@@ -49,7 +49,10 @@ static TuiInitResult telnet_app_init(void *cfg)
         free(app);
         return tui_init_result_none(NULL);
     }
-    tui_textinput_set_show_dividers(app->textinput, 1);
+
+    /* Border style flanking the textinput. main.c overrides via
+     * telnet_app_set_border_color() on connect/disconnect. */
+    app->border_style = tui_style_faint(tui_style_new(), 1);
 
     /* Create statusbar child */
     app->statusbar = tui_statusbar_create();
@@ -172,6 +175,25 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
     return tui_update_result_none();
 }
 
+/* Position cursor at (row, 1), clear-to-EOL, write a styled border edge. */
+static void render_border_at(DynamicBuffer *out, int row, int width, int top,
+                             const TuiStyle *style)
+{
+    if (row <= 0 || width <= 0)
+        return;
+    char *line = tui_border_render_horizontal(&TUI_BORDER_NORMAL, top, width,
+                                              style, NULL,
+                                              TUI_BORDER_TITLE_LEFT, 0, 0);
+    if (!line)
+        return;
+    char pos[32];
+    snprintf(pos, sizeof(pos), CSI "%d;1H", row);
+    dynamic_buffer_append_str(out, pos);
+    dynamic_buffer_append_str(out, EL_TO_END);
+    dynamic_buffer_append_str(out, line);
+    free(line);
+}
+
 /* Render TelnetApp.
  *
  * Returns a TuiView that declares alt-screen + cell-motion mouse +
@@ -187,10 +209,14 @@ static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
     if (!app || !out)
         return tui_view_default(out);
 
-    /* Layered render: viewport (top), statusbar (bottom), textinput. */
+    /* Layered render: viewport, top border, textinput, bottom border, statusbar. */
     tui_viewport_view(app->viewport, out);
-    tui_statusbar_view(app->statusbar, out);
+    render_border_at(out, app->top_border_row, app->terminal_width, 1,
+                     &app->border_style);
     tui_textinput_view(app->textinput, out);
+    render_border_at(out, app->bottom_border_row, app->terminal_width, 0,
+                     &app->border_style);
+    tui_statusbar_view(app->statusbar, out);
 
     TuiView v = tui_view_default(out);
     v.alt_screen = 1;
@@ -222,27 +248,20 @@ void telnet_app_set_terminal_size(TelnetAppModel *app, int width, int height)
     app->terminal_width = width;
     app->terminal_height = height;
 
-    /* Query fixed-height components */
-    int textinput_h =
-        tui_textinput_get_height(app->textinput);               /* 3 with dividers */
+    int content_lines = tui_textinput_get_height(app->textinput);
     int statusbar_h = tui_statusbar_get_height(app->statusbar); /* 1 */
 
-    /* Viewport fills remaining space */
-    int viewport_h = height - textinput_h - statusbar_h;
+    /* Layout, bottom-up: statusbar on the last row, then bottom border,
+     * textinput content rows, top border, and finally the viewport. */
+    int statusbar_row = height;
+    app->bottom_border_row = statusbar_row - statusbar_h;
+    int textinput_row = app->bottom_border_row - content_lines;
+    app->top_border_row = textinput_row - 1;
+
+    int viewport_h = app->top_border_row - 1;
     if (viewport_h < 1)
         viewport_h = 1;
 
-    /* Position components bottom-up.
-     * textinput_row is the first content line of the input area.
-     * With dividers, top divider is at textinput_row - 1,
-     * bottom divider after last content line, then statusbar at bottom. */
-    int statusbar_row = height;
-    int content_lines = textinput_h - (app->textinput->show_dividers ? 2 : 0);
-    int textinput_row = statusbar_row - statusbar_h -
-                        (app->textinput->show_dividers ? 1 : 0) - content_lines +
-                        1;
-
-    /* Apply positions */
     if (app->viewport) {
         tui_viewport_set_size(app->viewport, width, viewport_h);
         tui_viewport_set_render_position(app->viewport, 1, 1);
@@ -283,6 +302,16 @@ void telnet_app_set_prompt(TelnetAppModel *app, const char *prompt)
     if (app && app->textinput) {
         tui_textinput_set_prompt(app->textinput, prompt);
     }
+}
+
+/* Set the foreground color of the top + bottom border lines. */
+void telnet_app_set_border_color(TelnetAppModel *app, uint8_t r, uint8_t g,
+                                 uint8_t b)
+{
+    if (!app)
+        return;
+    app->border_style = tui_style_foreground(tui_style_new(),
+                                             tui_color_rgb(r, g, b));
 }
 
 /* Set the window title. The next view() will surface it via

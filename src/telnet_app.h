@@ -17,6 +17,8 @@
 #include <bloom-boba/components/statusbar.h>
 #include <bloom-boba/components/textinput.h>
 #include <bloom-boba/components/viewport.h>
+#include <bloom-boba/style.h>
+#include <stdint.h>
 
 /* TelnetApp configuration */
 typedef struct
@@ -37,8 +39,17 @@ typedef struct
     TuiTextInput *textinput; /* Child: user input */
     TuiStatusBar *statusbar; /* Child: status line at bottom */
 
+    /* Style for the top + bottom border lines that flank the textinput.
+     * Set via telnet_app_set_border_color() — main.c drives this from
+     * connection state. */
+    TuiStyle border_style;
+
     int terminal_width;
     int terminal_height;
+
+    /* Computed in telnet_app_set_terminal_size, consumed in telnet_app_view. */
+    int top_border_row;
+    int bottom_border_row;
 
     /* 0 = textinput, 1 = viewport. Shift-Tab toggles. */
     int focused_widget;
@@ -81,6 +92,12 @@ TuiStatusBar *telnet_app_get_statusbar(TelnetAppModel *app);
 
 /* Set the prompt string */
 void telnet_app_set_prompt(TelnetAppModel *app, const char *prompt);
+
+/* Set the foreground color of the top + bottom border lines flanking
+ * the textinput. main.c calls this on connect/disconnect to reflect
+ * connection state. */
+void telnet_app_set_border_color(TelnetAppModel *app, uint8_t r, uint8_t g,
+                                 uint8_t b);
 
 /* Set the window title. Pass NULL to clear. The title is surfaced as
  * TuiView.window_title on the next view(); call tui_runtime_wakeup() if

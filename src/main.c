@@ -77,7 +77,7 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size);
 static void echo_to_viewport(const char *text, size_t len);
 static void handle_app_cmd(TuiCmd *cmd, void *user_data);
 
-/* Update divider color based on connection status */
+/* Update border color based on connection status */
 static void update_divider_color(void)
 {
     if (!g_app)
@@ -96,10 +96,7 @@ static void update_divider_color(void)
             b = COLOR_DIVIDER_DISCONNECTED_B;
         }
     }
-    TuiStyle s = tui_style_foreground(tui_style_new(),
-                                      tui_color_rgb(r, g, b));
-    tui_textinput_set_focused_divider_style(g_textinput, s);
-    tui_textinput_set_blurred_divider_style(g_textinput, s);
+    telnet_app_set_border_color(g_app, (uint8_t)r, (uint8_t)g, (uint8_t)b);
 }
 
 /* Cleanup function called at exit.
