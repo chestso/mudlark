@@ -85,11 +85,9 @@
 (defun run-at-time (delay repeat func &rest args) nil)
 (defun cancel-timer (timer) nil)
 (defun bloom-log (level category message) nil)
-(defun statusbar-set-mode (&optional text) nil)
-(defun statusbar-notify (msg) nil)
-(defun statusbar-clear () nil)
-(defun statusbar-mode-set (sym text prio) nil)
-(defun statusbar-mode-remove (sym) nil)
+(defun set-status (&optional text) nil)
+(defun status-mode-set (sym text prio) nil)
+(defun status-mode-remove (sym) nil)
 (defun strip-ansi (text) text)
 
 ;; ============================================================================

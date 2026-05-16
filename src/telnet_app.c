@@ -54,15 +54,6 @@ static TuiInitResult telnet_app_init(void *cfg)
      * telnet_app_set_border_color() on connect/disconnect. */
     app->border_style = tui_style_faint(tui_style_new(), 1);
 
-    /* Create statusbar child */
-    app->statusbar = tui_statusbar_create();
-    if (!app->statusbar) {
-        tui_textinput_free(app->textinput);
-        tui_viewport_free(app->viewport);
-        free(app);
-        return tui_init_result_none(NULL);
-    }
-
     /* Configure layout using dynamic height queries */
     telnet_app_set_terminal_size(app, app->terminal_width, app->terminal_height);
 
@@ -96,10 +87,8 @@ static void telnet_app_free(TuiModel *model)
     if (app->textinput) {
         tui_textinput_free(app->textinput);
     }
-    if (app->statusbar) {
-        tui_statusbar_free(app->statusbar);
-    }
     free(app->window_title);
+    free(app->status_text);
     free(app);
 }
 
@@ -175,15 +164,18 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
     return tui_update_result_none();
 }
 
-/* Position cursor at (row, 1), clear-to-EOL, write a styled border edge. */
+/* Position cursor at (row, 1), clear-to-EOL, write a styled border edge.
+ * `title` (optional) is embedded in the divider per `align` + padding. */
 static void render_border_at(DynamicBuffer *out, int row, int width, int top,
-                             const TuiStyle *style)
+                             const TuiStyle *style, const char *title,
+                             TuiBorderTitleAlign align, int title_pad_left,
+                             int title_pad_right)
 {
     if (row <= 0 || width <= 0)
         return;
     char *line = tui_border_render_horizontal(&TUI_BORDER_NORMAL, top, width,
-                                              style, NULL,
-                                              TUI_BORDER_TITLE_LEFT, 0, 0);
+                                              style, title, align,
+                                              title_pad_left, title_pad_right);
     if (!line)
         return;
     char pos[32];
@@ -209,14 +201,15 @@ static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
     if (!app || !out)
         return tui_view_default(out);
 
-    /* Layered render: viewport, top border, textinput, bottom border, statusbar. */
+    /* Layered render: viewport, top border (with status as right-aligned
+     * title), textinput, bottom border. */
     tui_viewport_view(app->viewport, out);
     render_border_at(out, app->top_border_row, app->terminal_width, 1,
-                     &app->border_style);
+                     &app->border_style, app->status_text,
+                     TUI_BORDER_TITLE_RIGHT, 0, 1);
     tui_textinput_view(app->textinput, out);
     render_border_at(out, app->bottom_border_row, app->terminal_width, 0,
-                     &app->border_style);
-    tui_statusbar_view(app->statusbar, out);
+                     &app->border_style, NULL, TUI_BORDER_TITLE_LEFT, 0, 0);
 
     TuiView v = tui_view_default(out);
     v.alt_screen = 1;
@@ -249,12 +242,10 @@ void telnet_app_set_terminal_size(TelnetAppModel *app, int width, int height)
     app->terminal_height = height;
 
     int content_lines = tui_textinput_get_height(app->textinput);
-    int statusbar_h = tui_statusbar_get_height(app->statusbar); /* 1 */
 
-    /* Layout, bottom-up: statusbar on the last row, then bottom border,
-     * textinput content rows, top border, and finally the viewport. */
-    int statusbar_row = height;
-    app->bottom_border_row = statusbar_row - statusbar_h;
+    /* Layout, bottom-up: bottom border on the last row, textinput
+     * content rows, top border, and finally the viewport. */
+    app->bottom_border_row = height;
     int textinput_row = app->bottom_border_row - content_lines;
     app->top_border_row = textinput_row - 1;
 
@@ -271,11 +262,6 @@ void telnet_app_set_terminal_size(TelnetAppModel *app, int width, int height)
         tui_textinput_set_terminal_width(app->textinput, width);
         tui_textinput_set_terminal_row(app->textinput, textinput_row);
     }
-
-    if (app->statusbar) {
-        tui_statusbar_set_terminal_width(app->statusbar, width);
-        tui_statusbar_set_terminal_row(app->statusbar, statusbar_row);
-    }
 }
 
 /* Get the textinput component */
@@ -290,10 +276,13 @@ TuiViewport *telnet_app_get_viewport(TelnetAppModel *app)
     return app ? app->viewport : NULL;
 }
 
-/* Get the statusbar component */
-TuiStatusBar *telnet_app_get_statusbar(TelnetAppModel *app)
+/* Set the right-aligned status text rendered into the top divider. */
+void telnet_app_set_status_text(TelnetAppModel *app, const char *text)
 {
-    return app ? app->statusbar : NULL;
+    if (!app)
+        return;
+    free(app->status_text);
+    app->status_text = (text && *text) ? strdup(text) : NULL;
 }
 
 /* Set the prompt string */

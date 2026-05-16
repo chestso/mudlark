@@ -14,7 +14,6 @@
 #include <stddef.h>
 
 #include <bloom-boba/component.h>
-#include <bloom-boba/components/statusbar.h>
 #include <bloom-boba/components/textinput.h>
 #include <bloom-boba/components/viewport.h>
 #include <bloom-boba/style.h>
@@ -30,14 +29,14 @@ typedef struct
     int history_size;   /* Input history size */
 } TelnetAppConfig;
 
-/* TelnetApp model - composes viewport, textinput, and statusbar */
-typedef struct
+/* TelnetApp model - composes viewport + textinput. Status (mode emojis)
+ * is embedded as the right-aligned title of the top divider. */
+typedef struct TelnetAppModel
 {
     TuiModel base; /* Component base type */
 
     TuiViewport *viewport;   /* Child: server output display (software scrolling) */
     TuiTextInput *textinput; /* Child: user input */
-    TuiStatusBar *statusbar; /* Child: status line at bottom */
 
     /* Style for the top + bottom border lines that flank the textinput.
      * Set via telnet_app_set_border_color() — main.c drives this from
@@ -57,6 +56,10 @@ typedef struct
     /* Surfaced as TuiView.window_title each frame. Owned (strdup'd);
      * NULL = leave the window title alone. */
     char *window_title;
+
+    /* Right-aligned title rendered into the top divider. Owned (strdup'd);
+     * NULL or empty = bare divider. Set via telnet_app_set_status_text(). */
+    char *status_text;
 } TelnetAppModel;
 
 /* Custom message types for TelnetApp */
@@ -87,8 +90,10 @@ TuiTextInput *telnet_app_get_textinput(TelnetAppModel *app);
 /* Get the viewport component (for direct access) */
 TuiViewport *telnet_app_get_viewport(TelnetAppModel *app);
 
-/* Get the statusbar component (for direct access) */
-TuiStatusBar *telnet_app_get_statusbar(TelnetAppModel *app);
+/* Set the right-aligned title rendered into the top divider. NULL or
+ * empty string clears it. The string is duplicated internally; callers
+ * keep ownership of the input. */
+void telnet_app_set_status_text(TelnetAppModel *app, const char *text);
 
 /* Set the prompt string */
 void telnet_app_set_prompt(TelnetAppModel *app, const char *prompt);

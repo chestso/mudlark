@@ -47,11 +47,11 @@ int lisp_x_get_input_history_size(void);
 /* Register telnet pointer on the current session */
 void lisp_x_register_telnet(struct Telnet *t);
 
-/* Forward declaration for TuiStatusBar type */
-struct TuiStatusBar;
+/* Forward declaration for TelnetAppModel type */
+struct TelnetAppModel;
 
-/* Register statusbar pointer for statusbar builtins */
-void lisp_x_register_statusbar(struct TuiStatusBar *sb);
+/* Register TelnetApp model as the sink for the set-status builtin */
+void lisp_x_register_status_sink(struct TelnetAppModel *app);
 
 /* Get lisp environment (for accessing Lisp variables from C) */
 void *lisp_x_get_environment(void);

@@ -12,7 +12,6 @@
 #include "session.h"
 #include "telnet_app.h"
 #include <bloom-boba/cmd.h>
-#include <bloom-boba/components/statusbar.h>
 #include <bloom-boba/dynamic_buffer.h>
 #include <bloom-boba/runtime.h>
 #include <bloom-lisp/file_utils.h>
@@ -28,8 +27,8 @@
 #define BLOOM_TELNET_VERSION "unknown"
 #endif
 
-/* Registered statusbar pointer for statusbar builtins */
-static TuiStatusBar *registered_statusbar = NULL;
+/* Registered TelnetApp model for set-status builtin */
+static TelnetAppModel *registered_status_sink = NULL;
 
 /* Registered runtime for terminal control commands */
 static TuiRuntime *registered_runtime = NULL;
@@ -685,70 +684,32 @@ static LispObject *builtin_set_log_filter(LispObject *args, Environment *env)
     return NIL;
 }
 
-/* Builtin: statusbar-set-mode - Set the mode text in the statusbar (raw API) */
-static LispObject *builtin_statusbar_set_mode(LispObject *args,
-                                              Environment *env)
+/* Builtin: set-status - Set the right-aligned status string embedded in
+ * the top divider above the textinput. (set-status) or (set-status "")
+ * clears it. */
+static LispObject *builtin_set_status(LispObject *args, Environment *env)
 {
     (void)env;
 
-    if (!registered_statusbar) {
+    if (!registered_status_sink) {
         return NIL;
     }
 
     if (args == NIL) {
-        /* No argument = clear mode */
-        tui_statusbar_set_mode(registered_statusbar, NULL);
+        telnet_app_set_status_text(registered_status_sink, NULL);
         return NIL;
     }
 
     LispObject *text_obj = lisp_car(args);
+    if (text_obj == NIL) {
+        telnet_app_set_status_text(registered_status_sink, NULL);
+        return NIL;
+    }
     if (LISP_TYPE(text_obj) != LISP_STRING) {
-        return lisp_make_error("statusbar-set-mode: argument must be a string");
+        return lisp_make_error("set-status: argument must be a string or nil");
     }
 
-    const char *text = LISP_STR_VAL(text_obj);
-    if (text[0] == '\0') {
-        tui_statusbar_set_mode(registered_statusbar, NULL);
-    } else {
-        tui_statusbar_set_mode(registered_statusbar, text);
-    }
-
-    return NIL;
-}
-
-/* Builtin: statusbar-notify - Show a notification in the statusbar */
-static LispObject *builtin_statusbar_notify(LispObject *args,
-                                            Environment *env)
-{
-    (void)env;
-
-    if (args == NIL) {
-        return lisp_make_error("statusbar-notify requires 1 argument");
-    }
-
-    LispObject *msg_obj = lisp_car(args);
-    if (LISP_TYPE(msg_obj) != LISP_STRING) {
-        return lisp_make_error("statusbar-notify: argument must be a string");
-    }
-
-    if (registered_statusbar) {
-        tui_statusbar_set_notification(registered_statusbar,
-                                       LISP_STR_VAL(msg_obj));
-    }
-
-    return NIL;
-}
-
-/* Builtin: statusbar-clear - Clear the notification from the statusbar */
-static LispObject *builtin_statusbar_clear(LispObject *args, Environment *env)
-{
-    (void)env;
-    (void)args;
-
-    if (registered_statusbar) {
-        tui_statusbar_clear_notification(registered_statusbar);
-    }
-
+    telnet_app_set_status_text(registered_status_sink, LISP_STR_VAL(text_obj));
     return NIL;
 }
 
@@ -1549,28 +1510,20 @@ static void register_builtins(Environment *env)
     REG("bloom-log", builtin_bloom_log);
     REG("set-log-filter", builtin_set_log_filter);
 
-    /* Statusbar builtins (raw API - mode registry is in Lisp) */
-    lisp_set_docstring("statusbar-set-mode",
-                       "Set the mode text in the statusbar (left side).\n"
+    /* Status text — raw sink for the right-aligned title rendered into
+     * the top divider above the textinput. The mode registry in Lisp
+     * (status-mode-set / status-mode-remove) composes entries and calls
+     * this. */
+    lisp_set_docstring("set-status",
+                       "Set the right-aligned status string in the top divider.\n"
                        "\n"
-                       "Usage: (statusbar-set-mode \"text\")\n"
-                       "       (statusbar-set-mode)  ; clear mode\n"
+                       "Usage: (set-status \"text\")\n"
+                       "       (set-status)        ; clear\n"
+                       "       (set-status nil)    ; clear\n"
                        "\n"
-                       "This is the raw API. Use statusbar-mode-set/remove\n"
-                       "for the higher-level mode registry.");
-    REG("statusbar-set-mode", builtin_statusbar_set_mode);
-
-    lisp_set_docstring("statusbar-notify",
-                       "Set the notification in the statusbar (right side).\n"
-                       "\n"
-                       "Usage: (statusbar-notify \"message\")");
-    REG("statusbar-notify", builtin_statusbar_notify);
-
-    lisp_set_docstring("statusbar-clear",
-                       "Clear the notification from the statusbar.\n"
-                       "\n"
-                       "Usage: (statusbar-clear)");
-    REG("statusbar-clear", builtin_statusbar_clear);
+                       "Raw API. Use status-mode-set / status-mode-remove for\n"
+                       "the higher-level mode registry.");
+    REG("set-status", builtin_set_status);
 
     /* Session management builtins */
     REG("telnet-session-create", builtin_session_create);
@@ -1749,7 +1702,7 @@ void lisp_x_cleanup(void)
         pending_send_scheduled = 0;
     }
 
-    registered_statusbar = NULL;
+    registered_status_sink = NULL;
     registered_runtime = NULL;
 
     /* Cleanup all sessions and base environment */
@@ -2031,8 +1984,11 @@ void lisp_x_register_telnet(Telnet *t)
     }
 }
 
-/* Register statusbar instance */
-void lisp_x_register_statusbar(TuiStatusBar *sb) { registered_statusbar = sb; }
+/* Register TelnetApp model as the sink for set-status */
+void lisp_x_register_status_sink(TelnetAppModel *app)
+{
+    registered_status_sink = app;
+}
 
 /* Get lisp environment (base env, shared across all sessions) */
 void *lisp_x_get_environment(void) { return get_current_env(); }

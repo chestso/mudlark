@@ -240,7 +240,7 @@ static void process_line(const char *line)
                 tui_textinput_set_echo_mode(g_textinput, 0);
                 Environment *env = (Environment *)lisp_x_get_environment();
                 if (env)
-                    lisp_eval_string("(statusbar-mode-remove 'echo-off)", env);
+                    lisp_eval_string("(status-mode-remove 'echo-off)", env);
             }
         }
     } else {
@@ -360,7 +360,7 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
             tui_textinput_set_echo_mode(g_textinput, 0);
             Environment *env = (Environment *)lisp_x_get_environment();
             if (env)
-                lisp_eval_string("(statusbar-mode-remove 'echo-off)", env);
+                lisp_eval_string("(status-mode-remove 'echo-off)", env);
         }
         update_divider_color();
         echo_to_viewport("\n*** Connection lost ***\n", 25);
@@ -379,9 +379,9 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
             if (env) {
                 if (echo_now)
                     lisp_eval_string(
-                        "(statusbar-mode-set 'echo-off \"\xF0\x9F\x94\x92\" 200)", env);
+                        "(status-mode-set 'echo-off \"\xF0\x9F\x94\x92\" 200)", env);
                 else
-                    lisp_eval_string("(statusbar-mode-remove 'echo-off)", env);
+                    lisp_eval_string("(status-mode-remove 'echo-off)", env);
             }
         }
 
@@ -543,8 +543,8 @@ int main(int argc, char *argv[])
     /* Set initial divider color (gray = disconnected) */
     update_divider_color();
 
-    /* Register statusbar with Lisp extension for statusbar builtins */
-    lisp_x_register_statusbar(telnet_app_get_statusbar(g_app));
+    /* Register TelnetApp model with Lisp extension as the set-status sink */
+    lisp_x_register_status_sink(g_app);
 
     /* Now that viewport is available, route log messages there */
     bloom_log_set_echo(echo_to_viewport);

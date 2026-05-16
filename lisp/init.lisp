@@ -738,62 +738,63 @@ Colors: header=pale pink, desc=pale cyan, section=lavender, details=slate blue"
 (add-hook 'user-input-hook 'slash-command-hook 1)
 
 ;; ============================================================================
-;; STATUSBAR MODE REGISTRY
+;; STATUS MODE REGISTRY
 ;; ============================================================================
-;; Mode registry: list of (symbol text priority) entries
-(defvar *statusbar-mode-registry* '()
-  "Registry of active statusbar modes. Each entry is (symbol text priority).")
+;; Composes a right-aligned title into the top divider above the textinput
+;; via the C builtin `set-status`. Mode entries are (symbol text priority).
+(defvar *status-mode-registry* '()
+  "Registry of active status modes. Each entry is (symbol text priority).")
 
-(defun statusbar--insert-sorted (entry lst)
+(defun status--insert-sorted (entry lst)
   "Insert entry into list sorted by priority (descending)."
   (cond
     ((null? lst) (list entry))
     ((> (list-ref entry 2) (list-ref (car lst) 2)) (cons entry lst))
-    (#t (cons (car lst) (statusbar--insert-sorted entry (cdr lst))))))
+    (#t (cons (car lst) (status--insert-sorted entry (cdr lst))))))
 
-(defun statusbar--compose-modes ()
-  "Compose all modes into a single string and update the statusbar."
-  (if (null? *statusbar-mode-registry*)
-    (statusbar-set-mode)
-    (let ((texts (map (lambda (e) (list-ref e 1)) *statusbar-mode-registry*)))
-      (statusbar-set-mode (string-join texts " · ")))))
+(defun status--compose-modes ()
+  "Compose all modes into a single string and update the divider status."
+  (if (null? *status-mode-registry*)
+    (set-status)
+    (let ((texts (map (lambda (e) (list-ref e 1)) *status-mode-registry*)))
+      (set-status (string-join texts " · ")))))
 
-(defun statusbar-mode-set (mode-symbol text priority)
-  "Add or update a mode indicator in the statusbar.
+(defun status-mode-set (mode-symbol text priority)
+  "Add or update a status mode indicator (embedded in the top divider).
 
    Arguments:
    - mode-symbol: A symbol identifying this mode (for later removal)
-   - text: The display text shown in the statusbar
+   - text: The display text shown in the divider
    - priority: Integer priority (higher = leftmost)
 
    Multiple modes are composed together with \" · \" separator,
    sorted by priority (highest first).
 
    Example:
-     (statusbar-mode-set 'recording \"REC\" 100)
-     (statusbar-mode-set 'practice \"Practice\" 50)"
+     (status-mode-set 'recording \"REC\" 100)
+     (status-mode-set 'practice \"Practice\" 50)"
   ;; Remove existing entry with same symbol
-  (set! *statusbar-mode-registry*
+  (set! *status-mode-registry*
    (filter (lambda (e) (not (eq? (car e) mode-symbol)))
-    *statusbar-mode-registry*))
+    *status-mode-registry*))
   ;; Insert new entry in sorted position
-  (set! *statusbar-mode-registry*
-   (statusbar--insert-sorted (list mode-symbol text priority)
-    *statusbar-mode-registry*))
-  (statusbar--compose-modes)
+  (set! *status-mode-registry*
+   (status--insert-sorted (list mode-symbol text priority)
+    *status-mode-registry*))
+  (status--compose-modes)
   nil)
 
-(defun statusbar-mode-remove (mode-symbol)
-  "Remove a mode indicator from the statusbar.
+(defun status-mode-remove (mode-symbol)
+  "Remove a status mode indicator from the top divider.
 
    The mode is identified by the symbol used when it was set.
 
    Example:
-     (statusbar-mode-remove 'recording)"
-  (set! *statusbar-mode-registry*
+     (status-mode-remove 'recording)"
+  (set! *status-mode-registry*
    (filter (lambda (e) (not (eq? (car e) mode-symbol)))
-    *statusbar-mode-registry*))
-  (statusbar--compose-modes)
+    *status-mode-registry*))
+  (status--compose-modes)
   nil)
 
 ;; ============================================================================
@@ -817,21 +818,6 @@ Colors: header=pale pink, desc=pale cyan, section=lavender, details=slate blue"
 (defun unbind-fkey (n)
   "Unbind F-key N (1-12)."
   (hash-remove! *fkey-bindings* n))
-
-;; ============================================================================
-;; STATUSBAR NOTIFICATION WRAPPER
-;; ============================================================================
-(defvar *notify-timer* nil "Timer for auto-clearing notifications.")
-
-(defun notify (message &optional ttl)
-  "Display a notification in the statusbar.
-   Optional TTL (seconds) auto-clears the notification."
-  (when *notify-timer* (cancel-timer *notify-timer*) (set! *notify-timer* nil))
-  (statusbar-notify message)
-  (when ttl
-    (set! *notify-timer*
-     (run-at-time ttl nil
-      (lambda () (statusbar-clear) (set! *notify-timer* nil))))))
 
 ;; ============================================================================
 ;; DISPLAY UTILITY FUNCTIONS

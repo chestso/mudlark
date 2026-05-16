@@ -30,14 +30,19 @@
 int g_term_cols = 80;
 int g_term_rows = 24;
 
-/* Stub: lisp_extension.c references telnet_app_set_window_title from
- * update_terminal_title. Tests don't link telnet_app.o (which would
- * pull in TUI deps), so provide a no-op. */
+/* Stubs: lisp_extension.c references telnet_app helpers (window title,
+ * status text). Tests don't link telnet_app.o (which would pull in TUI
+ * deps), so provide no-ops. */
 struct TelnetAppModel;
 void telnet_app_set_window_title(struct TelnetAppModel *app, const char *title)
 {
     (void)app;
     (void)title;
+}
+void telnet_app_set_status_text(struct TelnetAppModel *app, const char *text)
+{
+    (void)app;
+    (void)text;
 }
 
 static int run = 0;

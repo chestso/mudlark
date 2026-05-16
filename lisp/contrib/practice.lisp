@@ -147,7 +147,7 @@ Variables
           (set! *practice-command-index* 0)
           (set! *practice-sleep-mode* nil)
           (set! *practice-sleep-timer* nil)
-          (statusbar-mode-set 'practice "🤹" 20)
+          (status-mode-set 'practice "🤹" 20)
           (practice-send (practice-current-command))
           (practice-advance-command))))))
 
@@ -165,8 +165,8 @@ Variables
       (set! *practice-command* nil)
       (set! *practice-command-index* 0)
       (set! *practice-sleep-mode* nil)
-      (statusbar-mode-remove 'practice)
-      (statusbar-mode-remove 'practice-sleep)
+      (status-mode-remove 'practice)
+      (status-mode-remove 'practice-sleep)
       (practice-echo "Stopped"))))
 
 (defun practice-send-empty ()
@@ -179,7 +179,7 @@ Variables
     (progn (set! *practice-sleep-mode* #t)
       (practice-echo "Sleeping (low mana)...")
       (practice-send "sleep")
-      (statusbar-mode-set 'practice-sleep "💤" 21)
+      (status-mode-set 'practice-sleep "💤" 21)
       ;; Start timer for periodic prompt refresh
       (set! *practice-sleep-timer*
        (run-at-time *practice-sleep-interval* *practice-sleep-interval*
@@ -195,7 +195,7 @@ Variables
           (set! *practice-sleep-timer* nil)))
       ;; Clear sleep mode
       (set! *practice-sleep-mode* nil)
-      (statusbar-mode-remove 'practice-sleep)
+      (status-mode-remove 'practice-sleep)
       (practice-echo "Waking up (mana restored)...")
       ;; Stand up and resume practicing
       (practice-send "stand")
