@@ -757,7 +757,7 @@ Colors: header=pale pink, desc=pale cyan, section=lavender, details=slate blue"
   (if (null? *status-mode-registry*)
     (set-status)
     (let ((texts (map (lambda (e) (list-ref e 1)) *status-mode-registry*)))
-      (set-status (string-join texts " · ")))))
+      (set-status (string-join texts "")))))
 
 (defun status-mode-set (mode-symbol text priority)
   "Add or update a status mode indicator (embedded in the top divider).

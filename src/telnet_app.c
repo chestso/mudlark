@@ -166,16 +166,17 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
 
 /* Position cursor at (row, 1), clear-to-EOL, write a styled border edge.
  * `title` (optional) is embedded in the divider per `align` + padding. */
-static void render_border_at(DynamicBuffer *out, int row, int width, int top,
+static void render_border_at(DynamicBuffer *out, int row, int width,
+                             const TuiBorder *border, int top,
                              const TuiStyle *style, const char *title,
                              TuiBorderTitleAlign align, int title_pad_left,
                              int title_pad_right)
 {
-    if (row <= 0 || width <= 0)
+    if (row <= 0 || width <= 0 || !border)
         return;
-    char *line = tui_border_render_horizontal(&TUI_BORDER_NORMAL, top, width,
-                                              style, title, align,
-                                              title_pad_left, title_pad_right);
+    char *line = tui_border_render_horizontal(border, top, width, style, title,
+                                              align, title_pad_left,
+                                              title_pad_right);
     if (!line)
         return;
     char pos[32];
@@ -184,6 +185,48 @@ static void render_border_at(DynamicBuffer *out, int row, int width, int top,
     dynamic_buffer_append_str(out, EL_TO_END);
     dynamic_buffer_append_str(out, line);
     free(line);
+}
+
+/* Render a divider with `title` right-aligned, padded with one space on
+ * each side and capped with one trailing edge tile — the line reads
+ * ───── TITLE ─. The trailing tile is read from the same (border, top)
+ * pair used to render the rest of the line, so the tail glyph can never
+ * drift from the divider's own edge char.
+ *
+ * Works around bloom-boba's title_pad_right adding a literal space
+ * instead of an edge tile (matches lipgloss's design: caller composes
+ * whatever surrounds the title). NULL or empty `title` falls back to a
+ * plain divider. */
+static void render_border_at_right_titled(DynamicBuffer *out, int row,
+                                          int width, const TuiBorder *border,
+                                          int top, const TuiStyle *style,
+                                          const char *title)
+{
+    if (!title || !*title || !border) {
+        render_border_at(out, row, width, border, top, style, NULL,
+                         TUI_BORDER_TITLE_LEFT, 0, 0);
+        return;
+    }
+    const char *edge = top ? border->top : border->bottom;
+    if (!edge)
+        edge = "";
+    size_t tlen = strlen(title);
+    size_t elen = strlen(edge);
+    /* Composed title: " " + title + " " + edge */
+    char *titled = (char *)malloc(tlen + elen + 3);
+    if (!titled) {
+        render_border_at(out, row, width, border, top, style, title,
+                         TUI_BORDER_TITLE_RIGHT, 0, 0);
+        return;
+    }
+    titled[0] = ' ';
+    memcpy(titled + 1, title, tlen);
+    titled[1 + tlen] = ' ';
+    memcpy(titled + 2 + tlen, edge, elen);
+    titled[2 + tlen + elen] = '\0';
+    render_border_at(out, row, width, border, top, style, titled,
+                     TUI_BORDER_TITLE_RIGHT, 0, 0);
+    free(titled);
 }
 
 /* Render TelnetApp.
@@ -201,15 +244,16 @@ static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
     if (!app || !out)
         return tui_view_default(out);
 
-    /* Layered render: viewport, top border (with status as right-aligned
-     * title), textinput, bottom border. */
+    /* Layered render: viewport, top border (with status right-aligned in
+     * the divider), textinput, bottom border. */
     tui_viewport_view(app->viewport, out);
-    render_border_at(out, app->top_border_row, app->terminal_width, 1,
-                     &app->border_style, app->status_text,
-                     TUI_BORDER_TITLE_RIGHT, 0, 1);
+    render_border_at_right_titled(out, app->top_border_row,
+                                  app->terminal_width, &TUI_BORDER_NORMAL, 1,
+                                  &app->border_style, app->status_text);
     tui_textinput_view(app->textinput, out);
-    render_border_at(out, app->bottom_border_row, app->terminal_width, 0,
-                     &app->border_style, NULL, TUI_BORDER_TITLE_LEFT, 0, 0);
+    render_border_at(out, app->bottom_border_row, app->terminal_width,
+                     &TUI_BORDER_NORMAL, 0, &app->border_style, NULL,
+                     TUI_BORDER_TITLE_LEFT, 0, 0);
 
     TuiView v = tui_view_default(out);
     v.alt_screen = 1;

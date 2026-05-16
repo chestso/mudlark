@@ -71,15 +71,15 @@
 (status--compose-modes)
 (assert-equal *status-text* "AAA" "Single entry composed")
 
-;; Multiple entries joined with separator
+;; Multiple entries concatenated (no separator)
 (set! *status-mode-registry* '((b "BBB" 100) (a "AAA" 50)))
 (status--compose-modes)
-(assert-equal *status-text* "BBB · AAA" "Multiple entries joined")
+(assert-equal *status-text* "BBBAAA" "Multiple entries concatenated")
 
 ;; Three entries
 (set! *status-mode-registry* '((c "CCC" 150) (b "BBB" 100) (a "AAA" 50)))
 (status--compose-modes)
-(assert-equal *status-text* "CCC · BBB · AAA" "Three entries joined")
+(assert-equal *status-text* "CCCBBBAAA" "Three entries concatenated")
 
 (print "status--compose-modes tests passed!")
 
@@ -97,27 +97,27 @@
 
 ;; Add higher priority mode
 (status-mode-set 'mode-b "Mode B" 100)
-(assert-equal *status-text* "Mode B · Mode A" "Higher priority at front")
+(assert-equal *status-text* "Mode BMode A" "Higher priority at front")
 (assert-equal (length *status-mode-registry*) 2 "Registry has 2 entries")
 
 ;; Add lower priority mode
 (status-mode-set 'mode-c "Mode C" 25)
-(assert-equal *status-text* "Mode B · Mode A · Mode C" "Lower priority at end")
+(assert-equal *status-text* "Mode BMode AMode C" "Lower priority at end")
 (assert-equal (length *status-mode-registry*) 3 "Registry has 3 entries")
 
 ;; Update existing mode text (same priority)
 (status-mode-set 'mode-a "Updated A" 50)
-(assert-equal *status-text* "Mode B · Updated A · Mode C" "Text updated, position same")
+(assert-equal *status-text* "Mode BUpdated AMode C" "Text updated, position same")
 (assert-equal (length *status-mode-registry*) 3 "Registry still has 3 entries")
 
 ;; Update existing mode priority (moves position)
 (status-mode-set 'mode-c "Mode C" 200)
-(assert-equal *status-text* "Mode C · Mode B · Updated A" "Priority update moves position")
+(assert-equal *status-text* "Mode CMode BUpdated A" "Priority update moves position")
 (assert-equal (length *status-mode-registry*) 3 "Registry still has 3 entries")
 
 ;; Update both text and priority
 (status-mode-set 'mode-a "New A" 150)
-(assert-equal *status-text* "Mode C · New A · Mode B" "Both text and priority updated")
+(assert-equal *status-text* "Mode CNew AMode B" "Both text and priority updated")
 
 (print "status-mode-set tests passed!")
 
@@ -132,11 +132,11 @@
 (status-mode-set 'x "X" 100)
 (status-mode-set 'y "Y" 50)
 (status-mode-set 'z "Z" 25)
-(assert-equal *status-text* "X · Y · Z" "Initial state")
+(assert-equal *status-text* "XYZ" "Initial state")
 
 ;; Remove middle
 (status-mode-remove 'y)
-(assert-equal *status-text* "X · Z" "Middle removed")
+(assert-equal *status-text* "XZ" "Middle removed")
 (assert-equal (length *status-mode-registry*) 2 "Registry has 2 entries")
 
 ;; Remove first (highest priority)
@@ -173,7 +173,7 @@
 
 ;; Negative priority
 (status-mode-set 'neg "Negative" -100)
-(assert-equal *status-text* " · Negative" "Negative priority works")
+(assert-equal *status-text* "Negative" "Negative priority works")
 
 (reset-status-state)
 
@@ -181,13 +181,13 @@
 (status-mode-set 'zero "Zero" 0)
 (status-mode-set 'pos "Positive" 50)
 (status-mode-set 'neg "Negative" -50)
-(assert-equal *status-text* "Positive · Zero · Negative" "Mixed priorities sorted")
+(assert-equal *status-text* "PositiveZeroNegative" "Mixed priorities sorted")
 
 ;; Very large priorities
 (reset-status-state)
 (status-mode-set 'big "Big" 999999)
 (status-mode-set 'small "Small" 1)
-(assert-equal *status-text* "Big · Small" "Large priority difference")
+(assert-equal *status-text* "BigSmall" "Large priority difference")
 
 ;; Same symbol added twice (should update, not duplicate)
 (reset-status-state)
@@ -216,15 +216,15 @@
 (status-mode-set 'c "C" 30)
 (status-mode-set 'd "D" 40)
 (status-mode-set 'e "E" 50)
-(assert-equal *status-text* "E · D · C · B · A" "5 modes added")
+(assert-equal *status-text* "EDCBA" "5 modes added")
 
 (status-mode-remove 'c)
 (status-mode-remove 'a)
 (status-mode-remove 'e)
-(assert-equal *status-text* "D · B" "3 modes removed")
+(assert-equal *status-text* "DB" "3 modes removed")
 
 (status-mode-set 'f "F" 35)
-(assert-equal *status-text* "D · F · B" "New mode inserted in middle")
+(assert-equal *status-text* "DFB" "New mode inserted in middle")
 
 (print "Rapid update tests passed!")
 
