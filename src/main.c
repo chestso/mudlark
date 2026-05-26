@@ -30,7 +30,7 @@
 #include <bloom-boba/runtime.h>
 #include <bloom-lisp/lisp.h>
 
-/* Version fallback if not defined by autoconf */
+#include "bloom_version.h"
 #ifndef BLOOM_TELNET_VERSION
 #define BLOOM_TELNET_VERSION "unknown"
 #endif

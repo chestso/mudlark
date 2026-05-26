@@ -22,7 +22,7 @@
 #include <string.h>
 #include <time.h>
 
-/* Version fallback if not defined by autoconf */
+#include "bloom_version.h"
 #ifndef BLOOM_TELNET_VERSION
 #define BLOOM_TELNET_VERSION "unknown"
 #endif

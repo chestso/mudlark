@@ -11,7 +11,8 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 
-AM_INIT_AUTOMAKE([foreign subdir-objects -Wall -Werror])
+AM_INIT_AUTOMAKE([1.14 foreign subdir-objects -Wall -Werror])
+AM_SILENT_RULES([yes])
 
 dnl Recompute the version at configure time so a rebuild after new commits
 dnl picks up the current version without needing to re-run autoreconf. Falls
@@ -22,7 +23,8 @@ AS_IF([test -z "$BLOOM_TELNET_VERSION"],
       [BLOOM_TELNET_VERSION="$PACKAGE_VERSION"])
 AC_SUBST([BLOOM_TELNET_VERSION])
 AC_MSG_NOTICE([bloom-telnet version: $BLOOM_TELNET_VERSION])
-AC_DEFINE_UNQUOTED([BLOOM_TELNET_VERSION], ["$BLOOM_TELNET_VERSION"], [Version string])
+dnl BLOOM_TELNET_VERSION is exposed to source via the compile-time-generated
+dnl bloom_version.h (see src/Makefile.am), not via config.h.
 
 dnl Check for programs
 AC_PROG_CC
