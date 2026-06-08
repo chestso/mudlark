@@ -245,42 +245,33 @@
   ```"
   (if (not (string? str))
     str
-    (let ((len (length str))
-          (pos 0)
-          (run-start 0)
+    ;; Single forward pass with an input string port (O(1) per char). Literal
+    ;; chars go straight to OUT; on '$' the variable name is collected by
+    ;; peeking varname chars (so the char that ends the name is not consumed).
+    (let ((port (open-input-string str))
           (out (open-output-string)))
-      ;; Literal runs between variables are copied with a single substring;
-      ;; only variable boundaries break the run. O(m) instead of O(m^2).
-      (do ()
-        ((>= pos len)
-         (if (< run-start len)
-           (port-write-string out (substring str run-start len)))
-         (get-output-string out))
-        (let ((ch (string-ref str pos)))
+      (do () ((port-eof? port) (get-output-string out))
+        (let ((ch (port-read-char port)))
           (if (char=? ch #\$)
-            ;; Flush the literal run accumulated before this $
-            (progn
-              (if (< run-start pos)
-                (port-write-string out (substring str run-start pos)))
-              ;; Extract variable name
-              (let ((var-start (+ pos 1))
-                    (var-end (+ pos 1)))
-                ;; Find end of variable name
-                (do ()
-                  ((or (>= var-end len)
-                       (not (tintin-is-varname-char? (string-ref str var-end)))))
-                  (set! var-end (+ var-end 1)))
-                (if (= var-start var-end)
-                  ;; No variable name after $, keep literal $
-                  (progn (port-write-string out "$") (set! pos (+ pos 1)))
-                  ;; Variable name found, try to expand
-                  (let* ((var-name (substring str var-start var-end))
-                         (var-value (hash-ref *tintin-variables* var-name)))
-                    (if var-value
-                      (port-write-string out var-value)
-                      (progn (port-write-string out "$")
-                        (port-write-string out var-name)))
-                    (set! pos var-end)))
-                (set! run-start pos)))
-            ;; Regular character - stays in the current run
-            (set! pos (+ pos 1))))))))
+            (let ((name (open-output-string))
+                  (name-len 0)
+                  (collecting #t))
+              ;; Accumulate the variable name
+              (do () ((not collecting))
+                (let ((c (port-peek-char port)))
+                  (if (and c (tintin-is-varname-char? c))
+                    (progn (port-read-char port) (port-write-char name c)
+                      (set! name-len (+ name-len 1)))
+                    (set! collecting #f))))
+              (if (= name-len 0)
+                ;; No variable name after $, keep literal $
+                (port-write-string out "$")
+                ;; Variable name found, try to expand
+                (let* ((var-name (get-output-string name))
+                       (var-value (hash-ref *tintin-variables* var-name)))
+                  (if var-value
+                    (port-write-string out var-value)
+                    (progn (port-write-string out "$")
+                      (port-write-string out var-name))))))
+            ;; Regular character
+            (port-write-char out ch)))))))

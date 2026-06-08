@@ -26,6 +26,42 @@
    "parse-ansi second code is reset"))
 
 ;; ============================================================================
+;; tintin-parse-ansi - edge cases (forward port-walk parity)
+;; ============================================================================
+;; Lone ESC not followed by '[' stays as plain text
+(let ((result (tintin-parse-ansi "a\033b")))
+  (assert-equal (car result) "a\033b" "parse-ansi lone ESC is plain")
+  (assert-equal (cdr result) '() "parse-ansi lone ESC adds no code"))
+
+;; ESC as the final character stays plain
+(let ((result (tintin-parse-ansi "ab\033")))
+  (assert-equal (car result) "ab\033" "parse-ansi trailing ESC is plain")
+  (assert-equal (cdr result) '() "parse-ansi trailing ESC adds no code"))
+
+;; Malformed CSI with no terminator (EOF mid-params) falls back to plain text
+(let ((result (tintin-parse-ansi "x\033[12")))
+  (assert-equal (car result) "x\033[12" "parse-ansi malformed CSI is plain")
+  (assert-equal (cdr result) '() "parse-ansi malformed CSI adds no code"))
+
+;; CSI broken by a non-parameter, non-letter byte also falls back to plain
+(let ((result (tintin-parse-ansi "x\033[1 m")))
+  (assert-equal (car result) "x\033[1 m" "parse-ansi CSI broken by space is plain")
+  (assert-equal (cdr result) '() "parse-ansi broken CSI adds no code"))
+
+;; Two consecutive codes share the same plain-text position
+(let ((result (tintin-parse-ansi "\033[1m\033[31mhi")))
+  (assert-equal (car result) "hi" "parse-ansi consecutive codes strip to plain")
+  (assert-equal (length (cdr result)) 2 "parse-ansi two consecutive codes")
+  (assert-equal (car (car (cdr result))) 0 "parse-ansi first consec code at 0")
+  (assert-equal (car (cadr (cdr result))) 0 "parse-ansi second consec code at 0"))
+
+;; A valid code followed immediately by a malformed one: the malformed bytes
+;; become plain text right after the valid code's position.
+(let ((result (tintin-parse-ansi "\033[31mhi\033[9")))
+  (assert-equal (car result) "hi\033[9" "parse-ansi valid then malformed")
+  (assert-equal (length (cdr result)) 1 "parse-ansi only the valid code recorded"))
+
+;; ============================================================================
 ;; tintin-find-all-regex-positions
 ;; ============================================================================
 (let ((positions (tintin-find-all-regex-positions "hello world hello" "hello")))

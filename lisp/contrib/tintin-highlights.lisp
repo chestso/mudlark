@@ -43,28 +43,13 @@
 ;; Check if an ANSI sequence is an SGR code (ends with 'm')
 (defun tintin-is-sgr-code? (seq) (regex-match? "^\033\\[[0-9;]*m$" seq))
 
-;; Find the end position of an ANSI sequence starting at pos
-;; Returns nil if not a valid ANSI sequence, or the end position (exclusive)
-(defun tintin-find-ansi-end (text pos len)
-  (if (and (< (+ pos 1) len) (char=? (string-ref text (+ pos 1)) #\[))
-    ;; CSI sequence - find the terminator
-    (tintin-find-ansi-terminator text (+ pos 2) len)
-    nil))
+;; Character predicates for CSI sequence scanning (used by tintin-parse-ansi).
+(defun tintin-ansi-param-char? (c)
+  (or (and (char>=? c #\0) (char<=? c #\9)) (char=? c #\;)))
 
-;; Recursive helper to find ANSI terminator (scans digits and semicolons)
-(defun tintin-find-ansi-terminator (text i len)
-  (if (>= i len)
-    nil ;; No terminator found
-    (let ((c (string-ref text i)))
-      (if (or (and (char>=? c #\0) (char<=? c #\9)) (char=? c #\;))
-        ;; Still in parameter section, keep scanning
-        (tintin-find-ansi-terminator text (+ i 1) len)
-        ;; Check if this is a valid terminator (letter)
-        (if
-          (or (and (char>=? c #\A) (char<=? c #\Z))
-              (and (char>=? c #\a) (char<=? c #\z)))
-          (+ i 1) ;; Return position after terminator
-          nil)))))
+(defun tintin-ansi-terminator-char? (c)
+  (or (and (char>=? c #\A) (char<=? c #\Z))
+      (and (char>=? c #\a) (char<=? c #\z))))
 
 ;; ============================================================================
 ;; PHASE 1: PARSE ANSI
@@ -73,39 +58,57 @@
 ;; Returns (plain-text . ansi-map) where ansi-map is a list of
 ;; (plain-pos . sequence) pairs in order of occurrence.
 (defun tintin-parse-ansi (line)
-  (let ((len (length line))
-        (pos 0)
-        (run-start 0)
+  ;; Single forward pass with an input string port: port-read-char/peek advance
+  ;; a byte cursor in O(1), so the whole walk is O(m) (no per-char string-ref
+  ;; rescanning). Plain chars go to OUT; valid CSI sequences are recorded in
+  ;; ANSI-MAP at the current plain-text position; a malformed ESC[... or a lone
+  ;; ESC falls back to plain text, exactly as before.
+  (let ((port (open-input-string line))
         (plain-pos 0)
         (ansi-map '())
         (out (open-output-string)))
-    ;; Plain-text runs between ANSI sequences are copied with a single
-    ;; substring; only an ANSI sequence breaks the run. A lone ESC that is
-    ;; not a valid sequence stays inside the run (same as before). O(m).
-    (do ()
-      ((>= pos len)
-       (if (< run-start len)
-         (port-write-string out (substring line run-start len)))
-       (cons (get-output-string out) (reverse ansi-map)))
-      (let ((ch (string-ref line pos)))
+    (do () ((port-eof? port) (cons (get-output-string out) (reverse ansi-map)))
+      (let ((ch (port-read-char port)))
         (if (char=? ch #\escape)
-          ;; Try to parse ANSI sequence
-          (let ((seq-end (tintin-find-ansi-end line pos len)))
-            (if seq-end
-              ;; Valid ANSI sequence - flush the plain run before it, then
-              ;; record the code at the current plain-text position
-              (progn
-                (if (< run-start pos)
-                  (progn (port-write-string out (substring line run-start pos))
-                    (set! plain-pos (+ plain-pos (- pos run-start)))))
-                (set! ansi-map
-                 (cons (cons plain-pos (substring line pos seq-end)) ansi-map))
-                (set! pos seq-end)
-                (set! run-start pos))
-              ;; Not valid ANSI - keep the ESC in the run, advance
-              (set! pos (+ pos 1))))
-          ;; Regular character - stays in the current run
-          (set! pos (+ pos 1)))))))
+          (let ((nxt (port-peek-char port)))
+            (if (and nxt (char=? nxt #\[))
+              ;; ESC '[' ... - scan the candidate CSI body by peeking, so the
+              ;; char that ends the scan is never consumed.
+              (let ((seq (open-output-string))
+                    (seq-len 2) ;; ESC + '['
+                    (terminated #f)
+                    (scanning #t))
+                (port-read-char port) ;; consume '['
+                (port-write-char seq #\escape)
+                (port-write-char seq #\[)
+                (do () ((not scanning))
+                  (let ((c (port-peek-char port)))
+                    (cond
+                      ((null? c) (set! scanning #f)) ;; EOF before terminator
+                      ((tintin-ansi-param-char? c)
+                       (port-read-char port)
+                       (port-write-char seq c)
+                       (set! seq-len (+ seq-len 1)))
+                      ((tintin-ansi-terminator-char? c)
+                       (port-read-char port)
+                       (port-write-char seq c)
+                       (set! seq-len (+ seq-len 1))
+                       (set! terminated #t)
+                       (set! scanning #f))
+                      (#t (set! scanning #f))))) ;; non-CSI char ends the scan
+                (if terminated
+                  ;; Valid sequence at the current plain-text position
+                  (set! ansi-map
+                   (cons (cons plain-pos (get-output-string seq)) ansi-map))
+                  ;; Malformed - the consumed "ESC[..." becomes plain text; the
+                  ;; char that ended the scan stays in the port for next time.
+                  (progn (port-write-string out (get-output-string seq))
+                    (set! plain-pos (+ plain-pos seq-len)))))
+              ;; Lone ESC (next char isn't '[' or we're at EOF) - plain text
+              (progn (port-write-char out #\escape)
+                (set! plain-pos (+ plain-pos 1)))))
+          ;; Regular character
+          (progn (port-write-char out ch) (set! plain-pos (+ plain-pos 1))))))))
 
 ;; ============================================================================
 ;; PHASE 2: COLLECT MATCHES
@@ -229,6 +232,7 @@
 ;; Returns the fully rendered string with proper ANSI codes.
 (defun tintin-render-highlighted-line (plain-text ansi-map match-ranges)
   (let ((len (length plain-text))
+        (in (open-input-string plain-text))
         (out (open-output-string))
         (server-state '())
         (current-highlight nil)
@@ -275,8 +279,9 @@
            (set! current-highlight nil))
           ;; Case 4: Same highlight or no highlight - no transition needed
           (#t nil)))
-      ;; Emit the character
-      (port-write-char out (string-ref plain-text pos))
+      ;; Emit the character (read sequentially from the port, O(1) per char,
+      ;; staying in lock-step with pos)
+      (port-write-char out (port-read-char in))
       (set! pos (+ pos 1)))))
 
 ;; ============================================================================

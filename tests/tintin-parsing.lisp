@@ -64,3 +64,30 @@
  "parse-arguments returns 'unclosed when later braced arg is unclosed")
 (assert-nil (tintin-parse-arguments "#alias" 2)
  "parse-arguments still returns nil when there are simply too few args")
+
+;; ============================================================================
+;; tintin-expand-variables-fast - forward port-walk parity
+;; ============================================================================
+(hash-set! *tintin-variables* "target" "orc")
+(hash-set! *tintin-variables* "n" "north")
+
+(assert-equal (tintin-expand-variables-fast "kill $target") "kill orc"
+ "expand-variables basic substitution")
+(assert-equal (tintin-expand-variables-fast "no vars here") "no vars here"
+ "expand-variables passes literal text through")
+(assert-equal (tintin-expand-variables-fast "$target and $n") "orc and north"
+ "expand-variables multiple variables")
+(assert-equal (tintin-expand-variables-fast "go $target now") "go orc now"
+ "expand-variables variable in the middle")
+;; Unset variable keeps the literal $name
+(assert-equal (tintin-expand-variables-fast "$missing") "$missing"
+ "expand-variables unset var keeps literal")
+;; A lone trailing $ stays literal
+(assert-equal (tintin-expand-variables-fast "cost is 5$") "cost is 5$"
+ "expand-variables trailing $ stays literal")
+;; $$ - neither is a name, both stay literal
+(assert-equal (tintin-expand-variables-fast "a$$b") "a$$b"
+ "expand-variables doubled $ stays literal")
+;; Name terminates at a non-varname char ('-' and '_' ARE name chars)
+(assert-equal (tintin-expand-variables-fast "$target!") "orc!"
+ "expand-variables name ends at punctuation")
