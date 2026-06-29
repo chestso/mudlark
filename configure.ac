@@ -60,11 +60,11 @@ fi
 dnl Check for pkg-config
 PKG_PROG_PKG_CONFIG
 
-dnl Check for bloom-lisp
-PKG_CHECK_MODULES([BLOOMLISP], [bloom-lisp])
+dnl Check for ditty
+PKG_CHECK_MODULES([DITTY], [ditty])
 
-dnl Check for bloom-boba
-PKG_CHECK_MODULES([BLOOMBOBA], [bloom-boba])
+dnl Check for boba
+PKG_CHECK_MODULES([BOBA], [boba])
 
 dnl Platform-specific socket libraries
 case "$host_os" in

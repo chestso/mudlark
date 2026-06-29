@@ -11,18 +11,18 @@
 #include "path_utils.h"
 #include "session.h"
 #include "telnet_app.h"
-#include <bloom-boba/cmd.h>
-#include <bloom-boba/dynamic_buffer.h>
-#include <bloom-boba/runtime.h>
-#include <bloom-lisp/file_utils.h>
-#include <bloom-lisp/lisp.h>
+#include <boba/cmd.h>
+#include <boba/dynamic_buffer.h>
+#include <boba/runtime.h>
+#include <ditty/file_utils.h>
+#include <ditty/lisp.h>
 #include <gc/gc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "bloom_version.h"
+#include "mudlark_version.h"
 #ifndef MUDLARK_VERSION
 #define MUDLARK_VERSION "unknown"
 #endif

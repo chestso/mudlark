@@ -6,7 +6,7 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 
 - RFC 854 compliant telnet client with NAWS and I/O logging
 - TUI interface with readline-style input, history, and tab completion cycling
-- Lisp scripting via bloom-lisp integration
+- Lisp scripting via ditty integration
 - TinTin++ compatible MUD scripting (`#alias`, `#action`, `#highlight`, `#var`, `#color`)
 - Multi-session support with per-session hook registries and telnet connections
 - ANSI color support with truecolor detection
@@ -17,9 +17,9 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 
 ## Dependencies
 
-- bloom-lisp (installed to `~/.local`, auto-detected via pkg-config)
-- Boehm GC (via bloom-lisp)
-- PCRE2 (via bloom-lisp)
+- ditty (installed to `~/.local`, auto-detected via pkg-config)
+- Boehm GC (via ditty)
+- PCRE2 (via ditty)
 
 ## Building
 
@@ -186,7 +186,7 @@ mudlark supports multiple sessions, each with its own telnet connection and hook
 
 ### Event Loop and Sending
 
-bloom-boba owns the `select()`-based event loop. mudlark plugs in via callbacks for telnet socket polling, stdin processing, timer ticks, and scheduled commands. Lisp code cannot access the socket directly — all sends route through the event loop and execute on the next iteration.
+boba owns the `select()`-based event loop. mudlark plugs in via callbacks for telnet socket polling, stdin processing, timer ticks, and scheduled commands. Lisp code cannot access the socket directly — all sends route through the event loop and execute on the next iteration.
 
 Two builtins send text to the server:
 

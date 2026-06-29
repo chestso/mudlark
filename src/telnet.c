@@ -3,9 +3,9 @@
 #include "../include/telnet.h"
 #include "lisp_extension.h"
 #include "logging.h"
-#include <bloom-boba/dynamic_buffer.h>
-#include <bloom-lisp/file_utils.h>
-#include <bloom-lisp/lisp.h>
+#include <boba/dynamic_buffer.h>
+#include <ditty/file_utils.h>
+#include <ditty/lisp.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

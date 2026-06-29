@@ -3,7 +3,7 @@
 #ifndef MUDLARK_LISP_H
 #define MUDLARK_LISP_H
 
-#include <bloom-boba/dynamic_buffer.h>
+#include <boba/dynamic_buffer.h>
 #include <stddef.h>
 
 /* Initialize Lisp interpreter, environment, and load init file */

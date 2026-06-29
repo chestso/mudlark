@@ -1,6 +1,6 @@
 # src/Makefile.am - Source files for mudlark
 
-# Regenerate bloom_version.h on every `make` so the embedded version string
+# Regenerate ditty_version.h on every `make` so the embedded version string
 # tracks the current git HEAD (including a -dirty suffix when the working
 # tree has uncommitted changes). The recipe always runs, but the file is
 # only rewritten when the version actually changes — so dependent .o files
@@ -43,10 +43,10 @@ mudlark_SOURCES = \
 
 mudlark_CPPFLAGS = \
     -I$(top_srcdir)/include \
-    $(BLOOMBOBA_CFLAGS) \
-    $(BLOOMLISP_CFLAGS)
+    $(BOBA_CFLAGS) \
+    $(DITTY_CFLAGS)
 
 mudlark_LDADD = \
-    $(BLOOMBOBA_LIBS) \
-    $(BLOOMLISP_LIBS) \
+    $(BOBA_LIBS) \
+    $(DITTY_LIBS) \
     $(SOCKET_LIBS)

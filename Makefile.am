@@ -17,8 +17,8 @@ EXTRA_DIST = \
     TODO.md
 
 # Format target — clang-format on C, shfmt on shell, prettier on Markdown,
-# black on Python, and the Lisp formatter (from the installed bloom-lisp
-# share dir or sibling checkout) on .lisp files via bloom-repl.
+# black on Python, and the Lisp formatter (from the installed ditty
+# share dir or sibling checkout) on .lisp files via ditty.
 .PHONY: format
 format:
 	@if command -v clang-format >/dev/null 2>&1; then \
@@ -51,9 +51,9 @@ format:
 	    echo "black not found - skipping Python formatting." >&2; \
 	fi
 	@repl=""; lisp_fmt=""; \
-	if command -v bloom-repl >/dev/null 2>&1; then repl=bloom-repl; fi; \
-	for cand in "$$HOME/.local/share/bloom-lisp/lisp/lisp-fmt.lisp" \
-	            "$(top_srcdir)/../bloom-lisp/lisp/lisp-fmt.lisp"; do \
+	if command -v ditty >/dev/null 2>&1; then repl=ditty; fi; \
+	for cand in "$$HOME/.local/share/ditty/lisp/lisp-fmt.lisp" \
+	            "$(top_srcdir)/../ditty/lisp/lisp-fmt.lisp"; do \
 	    [ -f "$$cand" ] && { lisp_fmt="$$cand"; break; }; \
 	done; \
 	if [ -n "$$repl" ] && [ -n "$$lisp_fmt" ]; then \
@@ -61,7 +61,7 @@ format:
 	    find $(top_srcdir)/lisp -name '*.lisp' -print0 \
 	        | xargs -0 -r -n 1 "$$repl" "$$lisp_fmt" -- -i; \
 	else \
-	    echo "bloom-repl or lisp-fmt.lisp not found - skipping Lisp formatting." >&2; \
+	    echo "ditty or lisp-fmt.lisp not found - skipping Lisp formatting." >&2; \
 	fi
 
 # Bear target — produce compile_commands.json for clangd by intercepting

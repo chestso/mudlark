@@ -13,11 +13,11 @@
 
 #include <stddef.h>
 
-#include <bloom-boba/component.h>
-#include <bloom-boba/components/textinput.h>
-#include <bloom-boba/components/viewport.h>
-#include <bloom-boba/dynamic_buffer.h>
-#include <bloom-boba/style.h>
+#include <boba/component.h>
+#include <boba/components/textinput.h>
+#include <boba/components/viewport.h>
+#include <boba/dynamic_buffer.h>
+#include <boba/style.h>
 #include <stdint.h>
 
 /* TelnetApp configuration */

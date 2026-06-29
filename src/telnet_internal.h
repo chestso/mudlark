@@ -4,7 +4,7 @@
 #define TELNET_INTERNAL_H
 
 #include "../include/telnet.h"
-#include <bloom-boba/dynamic_buffer.h>
+#include <boba/dynamic_buffer.h>
 #include <stdio.h>
 
 typedef enum

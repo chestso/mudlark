@@ -9,8 +9,8 @@
 
 #include "telnet_app.h"
 #include "lisp_extension.h"
-#include <bloom-boba/ansi_sequences.h>
-#include <bloom-boba/cmd.h>
+#include <boba/ansi_sequences.h>
+#include <boba/cmd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -205,7 +205,7 @@ static void render_border_at(DynamicBuffer *out, int row, int width,
  * pair used to render the rest of the line, so the tail glyph can never
  * drift from the divider's own edge char.
  *
- * Works around bloom-boba's title_pad_right adding a literal space
+ * Works around boba's title_pad_right adding a literal space
  * instead of an edge tile (matches lipgloss's design: caller composes
  * whatever surrounds the title). NULL or empty `title` falls back to a
  * plain divider. */

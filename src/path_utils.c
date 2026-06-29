@@ -1,7 +1,7 @@
 /* Path utilities for cross-platform path handling */
 
 #include "path_utils.h"
-#include <bloom-lisp/file_utils.h>
+#include <ditty/file_utils.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

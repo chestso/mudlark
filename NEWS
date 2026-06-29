@@ -4,6 +4,6 @@ Version 0.1.0 (unreleased)
 --------------------------
 * Initial release
 * Core RFC 854 telnet client functionality
-* TUI interface with bloom-boba textinput input
-* Lisp scripting via bloom-lisp integration
+* TUI interface with boba textinput input
+* Lisp scripting via ditty integration
 * TinTin++ compatible MUD scripting support

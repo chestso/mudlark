@@ -18,11 +18,11 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <bloom-boba/cmd.h>
-#include <bloom-boba/component.h>
-#include <bloom-boba/dynamic_buffer.h>
-#include <bloom-boba/msg.h>
-#include <bloom-boba/runtime.h>
+#include <boba/cmd.h>
+#include <boba/component.h>
+#include <boba/dynamic_buffer.h>
+#include <boba/msg.h>
+#include <boba/runtime.h>
 
 #include "../include/telnet.h"
 #include "../src/telnet_internal.h"

@@ -1,6 +1,6 @@
 /* test_add_hook_fixnum.c - Regression test for the add-hook fixnum segfault
  *
- * bloom-lisp uses tagged immediates: small integers are encoded inline as
+ * ditty uses tagged immediates: small integers are encoded inline as
  * `(value << 3) | LISP_TAG_FIXNUM` and are NOT real heap pointers. Code
  * that wants the type tag must go through LISP_TYPE(v) / LISP_INT_VAL(v).
  *
@@ -19,8 +19,8 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include <bloom-lisp/lisp.h>
-#include <bloom-lisp/lisp_value.h>
+#include <ditty/lisp.h>
+#include <ditty/lisp_value.h>
 
 #include "../src/lisp_extension.h"
 #include "../src/session.h"

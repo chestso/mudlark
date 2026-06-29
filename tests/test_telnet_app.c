@@ -12,12 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <bloom-boba/cmd.h>
-#include <bloom-boba/component.h>
-#include <bloom-boba/components/viewport.h>
-#include <bloom-boba/dynamic_buffer.h>
-#include <bloom-boba/msg.h>
-#include <bloom-boba/runtime.h>
+#include <boba/cmd.h>
+#include <boba/component.h>
+#include <boba/components/viewport.h>
+#include <boba/dynamic_buffer.h>
+#include <boba/msg.h>
+#include <boba/runtime.h>
 
 #include "../src/telnet_app.h"
 

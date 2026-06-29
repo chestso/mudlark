@@ -5,14 +5,14 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-if [ -n "$BLOOM_REPL" ] && command -v "$BLOOM_REPL" >/dev/null 2>&1; then
-	REPL="$BLOOM_REPL"
-elif [ -x "$HOME/.local/bin/bloom-repl" ]; then
-	REPL="$HOME/.local/bin/bloom-repl"
-elif command -v bloom-repl >/dev/null 2>&1; then
-	REPL="bloom-repl"
+if [ -n "$DITTY_BIN" ] && command -v "$DITTY_BIN" >/dev/null 2>&1; then
+	REPL="$DITTY_BIN"
+elif [ -x "$HOME/.local/bin/ditty" ]; then
+	REPL="$HOME/.local/bin/ditty"
+elif command -v ditty >/dev/null 2>&1; then
+	REPL="ditty"
 else
-	echo "ERROR: bloom-repl not found" >&2
+	echo "ERROR: ditty not found" >&2
 	exit 1
 fi
 

@@ -10,7 +10,7 @@
 #define SESSION_H
 
 #include "../include/telnet.h"
-#include <bloom-lisp/lisp.h>
+#include <ditty/lisp.h>
 
 typedef struct Session
 {

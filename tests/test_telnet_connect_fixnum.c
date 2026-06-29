@@ -5,7 +5,7 @@
  * `*tcp-keepalive-time*`, `*tcp-keepalive-interval*`,
  * `*telnet-log-directory*`, and several `*...-enabled*` symbols from the
  * Lisp environment. init.lisp defines the integer-valued ones as small
- * literals (e.g. `(defvar *connect-timeout* 2)`), which bloom-lisp encodes
+ * literals (e.g. `(defvar *connect-timeout* 2)`), which ditty encodes
  * as tagged immediates — not real heap pointers. Pre-fix code did
  * `obj->type == LISP_INTEGER` directly and SIGSEGV'd before any socket
  * work. This test reaches the variable-read path by attempting a connect
@@ -15,8 +15,8 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include <bloom-lisp/lisp.h>
-#include <bloom-lisp/lisp_value.h>
+#include <ditty/lisp.h>
+#include <ditty/lisp_value.h>
 
 #include "../include/telnet.h"
 #include "../src/lisp_extension.h"

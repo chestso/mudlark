@@ -7,28 +7,28 @@ test_telnet_app_SOURCES = test_telnet_app.c
 test_telnet_app_CPPFLAGS = \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/include \
-    $(BLOOMBOBA_CFLAGS)
+    $(BOBA_CFLAGS)
 test_telnet_app_LDADD = \
     $(top_builddir)/src/mudlark-telnet_app.o \
-    $(BLOOMBOBA_LIBS)
+    $(BOBA_LIBS)
 
 test_event_loop_SOURCES = test_event_loop.c
 test_event_loop_CPPFLAGS = \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/include \
-    $(BLOOMBOBA_CFLAGS)
+    $(BOBA_CFLAGS)
 test_event_loop_LDADD = \
     $(top_builddir)/src/mudlark-telnet.o \
     $(top_builddir)/src/mudlark-logging.o \
     $(top_builddir)/src/mudlark-path_utils.o \
-    $(BLOOMLISP_LIBS) \
-    $(BLOOMBOBA_LIBS)
+    $(DITTY_LIBS) \
+    $(BOBA_LIBS)
 
 test_add_hook_fixnum_SOURCES = test_add_hook_fixnum.c
 test_add_hook_fixnum_CPPFLAGS = \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/include \
-    $(BLOOMBOBA_CFLAGS)
+    $(BOBA_CFLAGS)
 test_add_hook_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-lisp_extension.o \
     $(top_builddir)/src/mudlark-session.o \
@@ -36,14 +36,14 @@ test_add_hook_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-logging.o \
     $(top_builddir)/src/mudlark-path_utils.o \
     $(top_builddir)/src/mudlark-terminal_caps.o \
-    $(BLOOMLISP_LIBS) \
-    $(BLOOMBOBA_LIBS)
+    $(DITTY_LIBS) \
+    $(BOBA_LIBS)
 
 test_telnet_connect_fixnum_SOURCES = test_telnet_connect_fixnum.c
 test_telnet_connect_fixnum_CPPFLAGS = \
     -I$(top_srcdir)/src \
     -I$(top_srcdir)/include \
-    $(BLOOMBOBA_CFLAGS)
+    $(BOBA_CFLAGS)
 test_telnet_connect_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-lisp_extension.o \
     $(top_builddir)/src/mudlark-session.o \
@@ -51,8 +51,8 @@ test_telnet_connect_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-logging.o \
     $(top_builddir)/src/mudlark-path_utils.o \
     $(top_builddir)/src/mudlark-terminal_caps.o \
-    $(BLOOMLISP_LIBS) \
-    $(BLOOMBOBA_LIBS)
+    $(DITTY_LIBS) \
+    $(BOBA_LIBS)
 
 # Test programs (C, Lisp, Python, shell). All entries are run by
 # `make check`; missing prerequisites must skip via exit 77, never silently
@@ -90,8 +90,8 @@ $(top_builddir)/src/mudlark:
 	$(MAKE) -C $(top_builddir)/src mudlark
 
 AM_TESTS_ENVIRONMENT = \
-    BLOOM_REPL="$${BLOOM_REPL:-bloom-repl}"; \
-    export BLOOM_REPL; \
+    DITTY_BIN="$${DITTY_BIN:-ditty}"; \
+    export DITTY_BIN; \
     MUDLARK_BIN="$(abs_top_builddir)/src/mudlark"; \
     export MUDLARK_BIN;
 

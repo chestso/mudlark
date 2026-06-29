@@ -1,7 +1,7 @@
 /* test_event_loop.c - Tests for C-level event loop behaviors
  *
  * Verifies that side effects (telnet sends, etc.) are properly routed
- * through the bloom-boba event loop rather than executed directly.
+ * through the boba event loop rather than executed directly.
  */
 
 #include "testkit.h"

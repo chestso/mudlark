@@ -1,6 +1,6 @@
 /* mudlark - Terminal-based telnet client with Lisp scripting
  *
- * Main entry point. The TUI runtime (bloom-boba) owns the event loop,
+ * Main entry point. The TUI runtime (boba) owns the event loop,
  * raw mode, and signal handling. This file provides callbacks for
  * telnet I/O, tick timers, resize, and stdin post-processing.
  */
@@ -27,10 +27,10 @@
 #include "lisp_extension.h"
 #include "logging.h"
 #include "telnet_app.h"
-#include <bloom-boba/ansi_sequences.h>
-#include <bloom-boba/cmd.h>
-#include <bloom-boba/runtime.h>
-#include <bloom-lisp/lisp.h>
+#include <boba/ansi_sequences.h>
+#include <boba/cmd.h>
+#include <boba/runtime.h>
+#include <ditty/lisp.h>
 
 #include "mudlark_version.h"
 #ifndef MUDLARK_VERSION
