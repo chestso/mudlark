@@ -1,4 +1,4 @@
-# bloom-telnet
+# mudlark
 
 A terminal-based telnet client with Lisp scripting support, designed for MUD gaming.
 
@@ -38,23 +38,23 @@ Build output goes to `build/`.
 
 ```bash
 # Connect to a MUD server
-./build/src/bloom-telnet mud.example.com 4000
+./build/src/mudlark mud.example.com 4000
 
 # Load TinTin++ macros on connect
-./build/src/bloom-telnet --load tintin.lisp mud.example.com 4000
+./build/src/mudlark --load tintin.lisp mud.example.com 4000
 
 # Multiple load files
-./build/src/bloom-telnet -l tintin.lisp -l practice.lisp mud.example.com 4000
+./build/src/mudlark -l tintin.lisp -l practice.lisp mud.example.com 4000
 
 # Load TinTin++ with config files (--tintin / -t)
-./build/src/bloom-telnet -l tintin.lisp --tintin ~/cf.tin -t ~/skarrah.tin mud.example.com 4000
+./build/src/mudlark -l tintin.lisp --tintin ~/cf.tin -t ~/skarrah.tin mud.example.com 4000
 
 # Enable debug logging (module:LEVEL or *:LEVEL for all)
-./build/src/bloom-telnet -L 'completion:DEBUG,*:WARN' mud.example.com 4000
+./build/src/mudlark -L 'completion:DEBUG,*:WARN' mud.example.com 4000
 
 # Help / version
-./build/src/bloom-telnet --help
-./build/src/bloom-telnet --version
+./build/src/mudlark --help
+./build/src/mudlark --version
 ```
 
 Note: The `-l`/`--load` option expects just the filename (e.g., `tintin` or `tintin.lisp`), not a path. The `.lisp` extension is added automatically if omitted. The system searches `lisp/` and `lisp/contrib/` automatically.
@@ -81,7 +81,7 @@ The viewport (the scrollback area above the input line) supports mouse and keybo
 - **Release**, then press **M-w** (Alt-w) to copy the selection to the clipboard.
 - **Mouse wheel** scrolls the viewport.
 
-Note: the terminal's own selection (Shift-drag in most terminals) is bypassed because bloom-telnet runs in alt-screen mouse-reporting mode. Use the viewport's selection instead.
+Note: the terminal's own selection (Shift-drag in most terminals) is bypassed because mudlark runs in alt-screen mouse-reporting mode. Use the viewport's selection instead.
 
 ### With the keyboard
 
@@ -102,7 +102,7 @@ If there is no mark, `M-w` copies the entire content line under the cursor.
 
 ## TinTin++ Scripting
 
-bloom-telnet includes a mini TinTin++ implementation so you can set up aliases, triggers, highlights, and variables without writing Lisp. Load it with `--load tintin.lisp`:
+mudlark includes a mini TinTin++ implementation so you can set up aliases, triggers, highlights, and variables without writing Lisp. Load it with `--load tintin.lisp`:
 
 ```
 #alias {k} {kill %0}              Create an alias ("k goblin" sends "kill goblin")
@@ -182,11 +182,11 @@ Slash commands start with `/` and are dispatched before any other input processi
 
 ### Sessions
 
-bloom-telnet supports multiple sessions, each with its own telnet connection and hook registry. All sessions share a single Lisp environment. Manage via `telnet-session-create`, `telnet-session-switch`, `telnet-session-list`, `telnet-session-destroy`.
+mudlark supports multiple sessions, each with its own telnet connection and hook registry. All sessions share a single Lisp environment. Manage via `telnet-session-create`, `telnet-session-switch`, `telnet-session-list`, `telnet-session-destroy`.
 
 ### Event Loop and Sending
 
-bloom-boba owns the `select()`-based event loop. bloom-telnet plugs in via callbacks for telnet socket polling, stdin processing, timer ticks, and scheduled commands. Lisp code cannot access the socket directly — all sends route through the event loop and execute on the next iteration.
+bloom-boba owns the `select()`-based event loop. mudlark plugs in via callbacks for telnet socket polling, stdin processing, timer ticks, and scheduled commands. Lisp code cannot access the socket directly — all sends route through the event loop and execute on the next iteration.
 
 Two builtins send text to the server:
 

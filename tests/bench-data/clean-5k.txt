@@ -8,7 +8,7 @@
 
   â¨ Welcome to the Bloom Test Server! â¨
   ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-  A test server for bloom-telnet development.
+  A test server for mudlark development.
   Unrecognized input is echoed back to you.
 
   Commands:

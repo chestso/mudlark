@@ -1,4 +1,4 @@
-/* Terminal capability detection implementation for bloom-telnet
+/* Terminal capability detection implementation for mudlark
  *
  * Detection strategy:
  * 1. Environment variables (primary, always runs)

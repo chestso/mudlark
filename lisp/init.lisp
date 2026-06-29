@@ -1,4 +1,4 @@
-;; Bootstrap Lisp file for bloom-telnet
+;; Bootstrap Lisp file for mudlark
 ;; Loaded into base_env on startup after the TUI is initialized.
 ;; All variables defined here can be overridden in your custom Lisp configuration file.
 ;; ============================================================================
@@ -873,7 +873,7 @@ Colors: header=pale pink, desc=pale cyan, section=lavender, details=slate blue"
          (if (and (string? encoding) (not (string=? encoding "ASCII")))
            (concat sep encoding)
            ""))))
-  (script-echo (concat "bloom-telnet " *version*) :desc
+  (script-echo (concat "mudlark " *version*) :desc
    ":help for built-in commands, /help for scripts" :section
    (concat "Terminal\n" term-info)))
 

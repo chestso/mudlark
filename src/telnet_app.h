@@ -5,7 +5,7 @@
  * - Routes messages to children in update()
  * - Composes child views with scroll regions in view()
  *
- * This is the main UI component for bloom-telnet.
+ * This is the main UI component for mudlark.
  */
 
 #ifndef TELNET_APP_H

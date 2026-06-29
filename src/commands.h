@@ -1,4 +1,4 @@
-/* Special colon commands for bloom-telnet */
+/* Special colon commands for mudlark */
 
 #ifndef COMMANDS_H
 #define COMMANDS_H

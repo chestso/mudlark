@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for the bloom-telnet test server."""
+"""Unit tests for the mudlark test server."""
 
 import os
 import sys

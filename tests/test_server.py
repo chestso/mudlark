@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test telnet server for bloom-telnet development.
+"""Test telnet server for mudlark development.
 
 A simple, extensible telnet server for testing. By default, it echoes
 all received data back to the client. Can be extended with custom
@@ -9,7 +9,7 @@ Usage:
     python3 tests/test_server.py
 
 Then connect with:
-    ./build/src/bloom-telnet localhost 4449
+    ./build/src/mudlark localhost 4449
 """
 
 import socket
@@ -375,7 +375,7 @@ class TestServer:
 
 {GREEN}{BOLD}  \u2728 Welcome to the Bloom Test Server! \u2728{RESET}
 {DIM}  {"\u2500" * (width - 4)}{RESET}
-{WHITE}{ITALIC}  A test server for bloom-telnet development.{RESET}
+{WHITE}{ITALIC}  A test server for mudlark development.{RESET}
 {WHITE}  Unrecognized input is echoed back to you.{RESET}
 
 {BLUE}{BOLD}{UNDERLINE}  Commands:{RESET}

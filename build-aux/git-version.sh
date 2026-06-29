@@ -1,5 +1,5 @@
 #!/bin/sh
-# git-version.sh - print the bloom-telnet version string.
+# git-version.sh - print the mudlark version string.
 #
 # Usage: git-version.sh [SRCDIR]
 #

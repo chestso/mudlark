@@ -1,8 +1,8 @@
-dnl configure.ac - Autoconf configuration for bloom-telnet
+dnl configure.ac - Autoconf configuration for mudlark
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([bloom-telnet],
+AC_INIT([mudlark],
         m4_esyscmd_s([cat version 2>/dev/null || echo "0.0.0-unknown"]),
         [thomasc1971@hotmail.com])
 AC_CONFIG_SRCDIR([src/telnet.c])
@@ -18,13 +18,13 @@ dnl Recompute the version at configure time so a rebuild after new commits
 dnl picks up the current version without needing to re-run autoreconf. Falls
 dnl back to PACKAGE_VERSION (set at autoreconf time via m4_esyscmd_s above)
 dnl for tarball builds where build-aux/git-version.sh has nothing to read.
-BLOOM_TELNET_VERSION=`"$srcdir/build-aux/git-version.sh" "$srcdir" 2>/dev/null`
-AS_IF([test -z "$BLOOM_TELNET_VERSION"],
-      [BLOOM_TELNET_VERSION="$PACKAGE_VERSION"])
-AC_SUBST([BLOOM_TELNET_VERSION])
-AC_MSG_NOTICE([bloom-telnet version: $BLOOM_TELNET_VERSION])
-dnl BLOOM_TELNET_VERSION is exposed to source via the compile-time-generated
-dnl bloom_version.h (see src/Makefile.am), not via config.h.
+MUDLARK_VERSION=`"$srcdir/build-aux/git-version.sh" "$srcdir" 2>/dev/null`
+AS_IF([test -z "$MUDLARK_VERSION"],
+      [MUDLARK_VERSION="$PACKAGE_VERSION"])
+AC_SUBST([MUDLARK_VERSION])
+AC_MSG_NOTICE([mudlark version: $MUDLARK_VERSION])
+dnl MUDLARK_VERSION is exposed to source via the compile-time-generated
+dnl mudlark_version.h (see src/Makefile.am), not via config.h.
 
 dnl Check for programs
 user_cflags="$CFLAGS"

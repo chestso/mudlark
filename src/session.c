@@ -1,4 +1,4 @@
-/* Session management implementation for bloom-telnet */
+/* Session management implementation for mudlark */
 
 #include "session.h"
 #include "logging.h"

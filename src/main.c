@@ -1,4 +1,4 @@
-/* bloom-telnet - Terminal-based telnet client with Lisp scripting
+/* mudlark - Terminal-based telnet client with Lisp scripting
  *
  * Main entry point. The TUI runtime (bloom-boba) owns the event loop,
  * raw mode, and signal handling. This file provides callbacks for
@@ -32,9 +32,9 @@
 #include <bloom-boba/runtime.h>
 #include <bloom-lisp/lisp.h>
 
-#include "bloom_version.h"
-#ifndef BLOOM_TELNET_VERSION
-#define BLOOM_TELNET_VERSION "unknown"
+#include "mudlark_version.h"
+#ifndef MUDLARK_VERSION
+#define MUDLARK_VERSION "unknown"
 #endif
 
 /* --- Crash visibility -------------------------------------------------------
@@ -47,12 +47,12 @@
 /* Sanitizer reports -> files (survive the stderr redirect), with stacktraces. */
 const char *__asan_default_options(void)
 {
-    return "abort_on_error=1:detect_leaks=0:log_path=/tmp/bloom-telnet-asan:"
+    return "abort_on_error=1:detect_leaks=0:log_path=/tmp/mudlark-asan:"
            "print_module_map=1";
 }
 const char *__ubsan_default_options(void)
 {
-    return "abort_on_error=1:print_stacktrace=1:log_path=/tmp/bloom-telnet-ubsan";
+    return "abort_on_error=1:print_stacktrace=1:log_path=/tmp/mudlark-ubsan";
 }
 
 static struct termios g_saved_termios;
@@ -220,7 +220,7 @@ static void print_usage(const char *progname)
 /* Print version information */
 static void print_version(void)
 {
-    printf("bloom-telnet %s\n", BLOOM_TELNET_VERSION);
+    printf("mudlark %s\n", MUDLARK_VERSION);
 }
 
 /* --- Runtime event callbacks --- */
@@ -538,11 +538,11 @@ int main(int argc, char *argv[])
      * so fatal errors before that still reach the real terminal. */
     if (isatty(STDIN_FILENO) && tcgetattr(STDIN_FILENO, &g_saved_termios) == 0)
         g_have_saved_termios = 1;
-    snprintf(g_log_path, sizeof(g_log_path), "/tmp/bloom-telnet.%d.log",
+    snprintf(g_log_path, sizeof(g_log_path), "/tmp/mudlark.%d.log",
              (int)getpid());
     g_crash_msg_len = snprintf(g_crash_msg, sizeof(g_crash_msg),
-                               "\r\nbloom-telnet exited abnormally. Diagnostics: "
-                               "%s (sanitizer: /tmp/bloom-telnet-*san.%d)\r\n",
+                               "\r\nmudlark exited abnormally. Diagnostics: "
+                               "%s (sanitizer: /tmp/mudlark-*san.%d)\r\n",
                                g_log_path, (int)getpid());
     if (g_crash_msg_len < 0)
         g_crash_msg_len = 0;

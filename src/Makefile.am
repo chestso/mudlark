@@ -1,30 +1,30 @@
-# src/Makefile.am - Source files for bloom-telnet
+# src/Makefile.am - Source files for mudlark
 
 # Regenerate bloom_version.h on every `make` so the embedded version string
 # tracks the current git HEAD (including a -dirty suffix when the working
 # tree has uncommitted changes). The recipe always runs, but the file is
 # only rewritten when the version actually changes — so dependent .o files
 # stay cached when nothing changed.
-BUILT_SOURCES = bloom_version.h
-CLEANFILES = bloom_version.h
+BUILT_SOURCES = mudlark_version.h
+CLEANFILES = mudlark_version.h
 
-.PHONY: bloom_version_force
-bloom_version.h: bloom_version_force
+.PHONY: mudlark_version_force
+mudlark_version.h: mudlark_version_force
 	@v=`"$(top_srcdir)/build-aux/git-version.sh" "$(top_srcdir)" 2>/dev/null`; \
-	test -n "$$v" || v="$(BLOOM_TELNET_VERSION)"; \
+	test -n "$$v" || v="$(MUDLARK_VERSION)"; \
 	test -n "$$v" || v="unknown"; \
-	printf '#ifndef BLOOM_VERSION_H\n#define BLOOM_VERSION_H\n#define BLOOM_TELNET_VERSION "%s"\n#endif\n' "$$v" > $@.tmp; \
+	printf '#ifndef MUDLARK_VERSION_H\n#define MUDLARK_VERSION_H\n#define MUDLARK_VERSION "%s"\n#endif\n' "$$v" > $@.tmp; \
 	if cmp -s $@.tmp $@ 2>/dev/null; then \
 	  rm -f $@.tmp; \
 	else \
 	  mv $@.tmp $@; \
 	  echo "  GEN      $@ ($$v)"; \
 	fi
-bloom_version_force:
+mudlark_version_force:
 
-bin_PROGRAMS = bloom-telnet
+bin_PROGRAMS = mudlark
 
-bloom_telnet_SOURCES = \
+mudlark_SOURCES = \
     main.c \
     telnet.c \
     path_utils.c \
@@ -41,12 +41,12 @@ bloom_telnet_SOURCES = \
     telnet_app.c \
     telnet_app.h
 
-bloom_telnet_CPPFLAGS = \
+mudlark_CPPFLAGS = \
     -I$(top_srcdir)/include \
     $(BLOOMBOBA_CFLAGS) \
     $(BLOOMLISP_CFLAGS)
 
-bloom_telnet_LDADD = \
+mudlark_LDADD = \
     $(BLOOMBOBA_LIBS) \
     $(BLOOMLISP_LIBS) \
     $(SOCKET_LIBS)

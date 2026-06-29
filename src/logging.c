@@ -1,4 +1,4 @@
-/* Logging system implementation for bloom-telnet */
+/* Logging system implementation for mudlark */
 
 #include "logging.h"
 #include "../include/terminal_caps.h"

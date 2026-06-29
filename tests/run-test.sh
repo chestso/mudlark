@@ -1,5 +1,5 @@
 #!/bin/sh
-# Test wrapper script for bloom-telnet tests
+# Test wrapper script for mudlark tests
 # Runs tests from the project root so (load "tests/...") and (load "lisp/...") work
 
 # Get the directory containing this script

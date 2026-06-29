@@ -19,7 +19,7 @@
 (defun tintin-save-state (filename)
   (let ((file (open filename "w")))
     ;; Header
-    (write-line file "// bloom-telnet state file")
+    (write-line file "// mudlark state file")
     (write-line file "")
     ;; Custom colors (bloom extension, before highlights that may reference them)
     (if (> (hash-count *tintin-custom-colors*) 0)

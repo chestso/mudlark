@@ -1,4 +1,4 @@
-/* Terminal capability detection for bloom-telnet
+/* Terminal capability detection for mudlark
  *
  * Provides hybrid detection of terminal capabilities using environment
  * variables (primary) with optional fallback to terminal escape sequence queries.

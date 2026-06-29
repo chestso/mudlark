@@ -24,7 +24,7 @@ void path_normalize_for_platform(char *path);
 int path_is_installed_bin_directory(const char *path);
 
 /* Construct POSIX-compliant data directory from executable path.
- * If exe is in .../bin/, returns .../share/bloom-telnet/
+ * If exe is in .../bin/, returns .../share/mudlark/
  * Returns 1 if successful and fills out_path, 0 otherwise.
  */
 int path_construct_data_directory(const char *base_path, char *out_path,

@@ -1,7 +1,7 @@
-/* Lisp interface for bloom-telnet */
+/* Lisp interface for mudlark */
 
-#ifndef BLOOM_TELNET_LISP_H
-#define BLOOM_TELNET_LISP_H
+#ifndef MUDLARK_LISP_H
+#define MUDLARK_LISP_H
 
 #include <bloom-boba/dynamic_buffer.h>
 #include <stddef.h>
@@ -112,4 +112,4 @@ void lisp_x_add_cli_arg(const char *flag, const char *value);
  * Called after all -l files are loaded. Returns number of errors. */
 int lisp_x_dispatch_cli_args(void);
 
-#endif /* BLOOM_TELNET_LISP_H */
+#endif /* MUDLARK_LISP_H */

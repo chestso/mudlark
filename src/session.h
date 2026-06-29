@@ -1,4 +1,4 @@
-/* Session management for bloom-telnet
+/* Session management for mudlark
  *
  * A Session holds a per-session hooks hash table and an optional telnet
  * connection. All Lisp evaluation uses the shared base environment; sessions

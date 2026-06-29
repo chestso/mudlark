@@ -1,5 +1,5 @@
 #!/bin/sh
-# Benchmark runner for bloom-telnet
+# Benchmark runner for mudlark
 # Runs all bench-*.lisp files, or a specific one if given as argument
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

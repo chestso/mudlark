@@ -1,4 +1,4 @@
-;; Session management tests for bloom-telnet
+;; Session management tests for mudlark
 ;; Tests session creation, switching, isolation, naming, and destruction.
 
 (load "tests/test-helpers.lisp")

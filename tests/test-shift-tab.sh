@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tmux-driven test for Shift-Tab focus toggle between textinput and viewport.
 #
-# Drives bloom-telnet inside a detached tmux session, sends keystrokes via
+# Drives mudlark inside a detached tmux session, sends keystrokes via
 # `tmux send-keys`, and asserts on `tmux capture-pane` output.
 #
 # tmux key names: BTab = Shift-Tab, C-Space = Ctrl-Space, M-w = Alt-w.
@@ -11,7 +11,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TOP_SRCDIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-BLOOM_TELNET_BIN="${BLOOM_TELNET_BIN:-$TOP_SRCDIR/build/src/bloom-telnet}"
+MUDLARK_BIN="${MUDLARK_BIN:-$TOP_SRCDIR/build/src/mudlark}"
 TEST_SERVER="${TEST_SERVER:-$SCRIPT_DIR/test_server.py}"
 
 if ! command -v tmux >/dev/null 2>&1; then
@@ -22,8 +22,8 @@ if ! command -v python3 >/dev/null 2>&1; then
 	echo "python3 not found; skipping" >&2
 	exit 77
 fi
-if [ ! -x "$BLOOM_TELNET_BIN" ]; then
-	echo "bloom-telnet binary not found at $BLOOM_TELNET_BIN; skipping" >&2
+if [ ! -x "$MUDLARK_BIN" ]; then
+	echo "mudlark binary not found at $MUDLARK_BIN; skipping" >&2
 	exit 77
 fi
 
@@ -58,9 +58,9 @@ for _ in $(seq 1 50); do
 	sleep 0.1
 done
 
-# Start bloom-telnet inside tmux.
+# Start mudlark inside tmux.
 tmux new-session -d -s "$SESSION" -x 120 -y 40 \
-	"$BLOOM_TELNET_BIN" 127.0.0.1 "$PORT"
+	"$MUDLARK_BIN" 127.0.0.1 "$PORT"
 sleep 0.5
 
 assert_pane_contains() {

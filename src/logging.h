@@ -1,4 +1,4 @@
-/* Logging system for bloom-telnet
+/* Logging system for mudlark
  *
  * Routes log messages to the viewport with colored prefixes.
  * Filterable via CLI --log option and Lisp (set-log-filter) at runtime.

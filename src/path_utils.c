@@ -56,7 +56,7 @@ int path_is_installed_bin_directory(const char *path)
 }
 
 /* Construct POSIX-compliant data directory from executable path.
- * If exe is in .../bin/, returns .../share/bloom-telnet/
+ * If exe is in .../bin/, returns .../share/mudlark/
  * Returns 1 if successful and fills out_path, 0 otherwise.
  */
 int path_construct_data_directory(const char *base_path, char *out_path,
@@ -92,8 +92,8 @@ int path_construct_data_directory(const char *base_path, char *out_path,
         return 0; // Unexpected format
     }
 
-    // Append share/bloom-telnet (using Unix separator internally)
-    snprintf(out_path, out_path_size, "%s/share/bloom-telnet", temp_path);
+    // Append share/mudlark (using Unix separator internally)
+    snprintf(out_path, out_path_size, "%s/share/mudlark", temp_path);
 
     // Normalize for platform at the end
     path_normalize_for_platform(out_path);

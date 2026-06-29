@@ -1,4 +1,4 @@
-/* Lisp extension implementation for bloom-telnet */
+/* Lisp extension implementation for mudlark */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -23,8 +23,8 @@
 #include <time.h>
 
 #include "bloom_version.h"
-#ifndef BLOOM_TELNET_VERSION
-#define BLOOM_TELNET_VERSION "unknown"
+#ifndef MUDLARK_VERSION
+#define MUDLARK_VERSION "unknown"
 #endif
 
 /* Registered TelnetApp model for set-status builtin */
@@ -56,7 +56,7 @@ static CliArg *cli_pending_args = NULL;
 static int cli_pending_count = 0;
 static int cli_pending_capacity = 0;
 
-/* Update terminal window title to "bloom-telnet - session_name" */
+/* Update terminal window title to "mudlark - session_name" */
 static void update_terminal_title(void)
 {
     if (!registered_runtime)
@@ -64,7 +64,7 @@ static void update_terminal_title(void)
     Session *s = session_get_current();
     const char *name = s ? s->name : "default";
     char title[256];
-    snprintf(title, sizeof(title), "bloom-telnet - %s", name);
+    snprintf(title, sizeof(title), "mudlark - %s", name);
 
     /* v2: window title is declared on TuiView. Stash it on the model;
      * the next flush picks it up. Wake the event loop so the title is
@@ -1546,7 +1546,7 @@ int lisp_x_init(void)
 
     /* Version string accessible from Lisp */
     env_define(base_env, LISP_SYM_VAL(lisp_intern("*version*")),
-               lisp_make_string(BLOOM_TELNET_VERSION), pkg_core);
+               lisp_make_string(MUDLARK_VERSION), pkg_core);
 
     /* Initialize *default-hooks* in base env (collects hooks registered
      * during init.lisp before any session exists) */

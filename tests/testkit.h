@@ -1,4 +1,4 @@
-/* testkit.h - Reusable C test infrastructure for bloom-telnet
+/* testkit.h - Reusable C test infrastructure for mudlark
  *
  * Provides:
  * - Noop TUI component for creating test runtimes
@@ -7,8 +7,8 @@
  * - Test runner macros
  */
 
-#ifndef BLOOM_TELNET_TESTKIT_H
-#define BLOOM_TELNET_TESTKIT_H
+#ifndef MUDLARK_TESTKIT_H
+#define MUDLARK_TESTKIT_H
 
 #include <assert.h>
 #include <fcntl.h>
@@ -189,4 +189,4 @@ const char *termcaps_format_fg_color(int r, int g, int b)
 }
 #endif
 
-#endif /* BLOOM_TELNET_TESTKIT_H */
+#endif /* MUDLARK_TESTKIT_H */

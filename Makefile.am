@@ -1,4 +1,4 @@
-# Makefile.am - Top-level automake file for bloom-telnet
+# Makefile.am - Top-level automake file for mudlark
 
 SUBDIRS = include src lisp tests
 

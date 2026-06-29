@@ -1,4 +1,4 @@
-;; tintin.lisp - TinTin++ emulator for bloom-telnet
+;; tintin.lisp - TinTin++ emulator for mudlark
 ;;
 ;; This is the main entry point that loads all TinTin++ modules and
 ;; provides the input processing hooks for the telnet client.

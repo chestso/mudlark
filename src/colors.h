@@ -1,11 +1,11 @@
-/* Default UI color constants for bloom-telnet.
+/* Default UI color constants for mudlark.
  *
  * These are C-level fallbacks used when the corresponding Lisp defvar
  * (defined in init.lisp) cannot be read.  Keep them in sync.
  */
 
-#ifndef BLOOM_TELNET_COLORS_H
-#define BLOOM_TELNET_COLORS_H
+#ifndef MUDLARK_COLORS_H
+#define MUDLARK_COLORS_H
 
 /* User input echo */
 #define COLOR_USER_INPUT_R 255
@@ -39,4 +39,4 @@
 #define COLOR_LOG_ERROR_G 80
 #define COLOR_LOG_ERROR_B 80
 
-#endif /* BLOOM_TELNET_COLORS_H */
+#endif /* MUDLARK_COLORS_H */

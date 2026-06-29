@@ -9,7 +9,7 @@ test_telnet_app_CPPFLAGS = \
     -I$(top_srcdir)/include \
     $(BLOOMBOBA_CFLAGS)
 test_telnet_app_LDADD = \
-    $(top_builddir)/src/bloom_telnet-telnet_app.o \
+    $(top_builddir)/src/mudlark-telnet_app.o \
     $(BLOOMBOBA_LIBS)
 
 test_event_loop_SOURCES = test_event_loop.c
@@ -18,9 +18,9 @@ test_event_loop_CPPFLAGS = \
     -I$(top_srcdir)/include \
     $(BLOOMBOBA_CFLAGS)
 test_event_loop_LDADD = \
-    $(top_builddir)/src/bloom_telnet-telnet.o \
-    $(top_builddir)/src/bloom_telnet-logging.o \
-    $(top_builddir)/src/bloom_telnet-path_utils.o \
+    $(top_builddir)/src/mudlark-telnet.o \
+    $(top_builddir)/src/mudlark-logging.o \
+    $(top_builddir)/src/mudlark-path_utils.o \
     $(BLOOMLISP_LIBS) \
     $(BLOOMBOBA_LIBS)
 
@@ -30,12 +30,12 @@ test_add_hook_fixnum_CPPFLAGS = \
     -I$(top_srcdir)/include \
     $(BLOOMBOBA_CFLAGS)
 test_add_hook_fixnum_LDADD = \
-    $(top_builddir)/src/bloom_telnet-lisp_extension.o \
-    $(top_builddir)/src/bloom_telnet-session.o \
-    $(top_builddir)/src/bloom_telnet-telnet.o \
-    $(top_builddir)/src/bloom_telnet-logging.o \
-    $(top_builddir)/src/bloom_telnet-path_utils.o \
-    $(top_builddir)/src/bloom_telnet-terminal_caps.o \
+    $(top_builddir)/src/mudlark-lisp_extension.o \
+    $(top_builddir)/src/mudlark-session.o \
+    $(top_builddir)/src/mudlark-telnet.o \
+    $(top_builddir)/src/mudlark-logging.o \
+    $(top_builddir)/src/mudlark-path_utils.o \
+    $(top_builddir)/src/mudlark-terminal_caps.o \
     $(BLOOMLISP_LIBS) \
     $(BLOOMBOBA_LIBS)
 
@@ -45,12 +45,12 @@ test_telnet_connect_fixnum_CPPFLAGS = \
     -I$(top_srcdir)/include \
     $(BLOOMBOBA_CFLAGS)
 test_telnet_connect_fixnum_LDADD = \
-    $(top_builddir)/src/bloom_telnet-lisp_extension.o \
-    $(top_builddir)/src/bloom_telnet-session.o \
-    $(top_builddir)/src/bloom_telnet-telnet.o \
-    $(top_builddir)/src/bloom_telnet-logging.o \
-    $(top_builddir)/src/bloom_telnet-path_utils.o \
-    $(top_builddir)/src/bloom_telnet-terminal_caps.o \
+    $(top_builddir)/src/mudlark-lisp_extension.o \
+    $(top_builddir)/src/mudlark-session.o \
+    $(top_builddir)/src/mudlark-telnet.o \
+    $(top_builddir)/src/mudlark-logging.o \
+    $(top_builddir)/src/mudlark-path_utils.o \
+    $(top_builddir)/src/mudlark-terminal_caps.o \
     $(BLOOMLISP_LIBS) \
     $(BLOOMBOBA_LIBS)
 
@@ -85,15 +85,15 @@ SH_LOG_COMPILER = $(SHELL)
 # tmux-driven shell tests need the built binary to drive. Skips with exit
 # 77 if the binary is missing, but we still depend on it explicitly so a
 # top-level `make check` builds it first instead of silently skipping.
-check-local: $(top_builddir)/src/bloom-telnet
-$(top_builddir)/src/bloom-telnet:
-	$(MAKE) -C $(top_builddir)/src bloom-telnet
+check-local: $(top_builddir)/src/mudlark
+$(top_builddir)/src/mudlark:
+	$(MAKE) -C $(top_builddir)/src mudlark
 
 AM_TESTS_ENVIRONMENT = \
     BLOOM_REPL="$${BLOOM_REPL:-bloom-repl}"; \
     export BLOOM_REPL; \
-    BLOOM_TELNET_BIN="$(abs_top_builddir)/src/bloom-telnet"; \
-    export BLOOM_TELNET_BIN;
+    MUDLARK_BIN="$(abs_top_builddir)/src/mudlark"; \
+    export MUDLARK_BIN;
 
 EXTRA_DIST = \
     run-test.sh \

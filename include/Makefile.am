@@ -1,6 +1,6 @@
 # include/Makefile.am - Public headers
 
-bloomtelnetincludedir = $(includedir)/bloom-telnet
+mudlarkincludedir = $(includedir)/mudlark
 
-bloomtelnetinclude_HEADERS = \
+mudlarkinclude_HEADERS = \
     telnet.h

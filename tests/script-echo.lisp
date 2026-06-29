@@ -142,11 +142,11 @@
 ;; Test: Description and sections together
 ;; ============================================================================
 (reset-output)
-(script-echo "bloom-telnet 1.0"
+(script-echo "mudlark 1.0"
   :desc ":help for commands"
   :section "Terminal\nxterm-256color")
 (let ((out (get-output)))
-  (assert-true (contains? out "bloom-telnet 1.0")
+  (assert-true (contains? out "mudlark 1.0")
     "Has title")
   (assert-true (contains? out ":help for commands")
     "Has description")

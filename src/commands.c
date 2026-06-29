@@ -1,4 +1,4 @@
-/* Special colon commands implementation for bloom-telnet */
+/* Special colon commands implementation for mudlark */
 
 #include "commands.h"
 #include "../include/telnet.h"

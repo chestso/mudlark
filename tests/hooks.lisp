@@ -1,4 +1,4 @@
-;; Hook system tests for bloom-telnet
+;; Hook system tests for mudlark
 ;; Tests add-hook, remove-hook, run-hook, and run-transform-hook backed
 ;; by the *hooks* hash table.
 
