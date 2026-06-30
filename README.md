@@ -14,6 +14,7 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 - F-key bindings (F1–F12) configurable from Lisp
 - Speedwalk shorthand (e.g., `3n2e` expands to `n;n;n;e;e`)
 - Configurable log filtering by module and level
+- Bundled `tintin-mode` Emacs package for editing `.tin` files (see `emacs/README.md`)
 
 ## Dependencies
 
