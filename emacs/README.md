@@ -31,6 +31,9 @@ The `EMACS` variable selects the Emacs binary (default: `emacs`).
 make emacs EMACS=/path/to/emacs
 ```
 
+The `emacs/` subdirectory is built via autotools (`Makefile.am`); these
+targets delegate to the autotools build directory.
+
 ## Installation
 
 ### Via mudlark install

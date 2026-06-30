@@ -93,6 +93,7 @@ AC_CONFIG_FILES([
     include/Makefile
     src/Makefile
     lisp/Makefile
+    emacs/Makefile
     tests/Makefile
 ])
 

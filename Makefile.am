@@ -1,6 +1,6 @@
 # Makefile.am - Top-level automake file for mudlark
 
-SUBDIRS = include src lisp tests
+SUBDIRS = include src lisp emacs tests
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -15,7 +15,7 @@ EXTRA_DIST = \
     COPYING \
     .clang-format \
     TODO.md \
-    emacs/Makefile \
+    emacs/Makefile.am \
     emacs/README.md \
     emacs/COPYING \
     emacs/tintin-mode.el \
@@ -69,11 +69,8 @@ format:
 	    echo "ditty or lisp-fmt.lisp not found - skipping Lisp formatting." >&2; \
 	fi
 	@if command -v emacs >/dev/null 2>&1; then \
-	    echo "Formatting Elisp with emacs..."; \
-	    emacs --batch \
-	      --eval '(require (quote package))' \
-	      --eval '(package-initialize)' \
-	      --eval '(dolist (f (list "$(top_srcdir)/emacs/tintin-mode.el" "$(top_srcdir)/emacs/tintin-mode-tests.el")) (find-file f) (indent-region (point-min) (point-max)) (save-buffer))'; \
+	    echo "Formatting Elisp via emacs..."; \
+	    $(MAKE) -C $(top_builddir)/emacs elisp-format srcdir=$(top_srcdir)/emacs; \
 	else \
 	    echo "emacs not found - skipping Elisp formatting." >&2; \
 	fi
@@ -81,11 +78,12 @@ format:
 # ── Emacs contrib (tintin-mode) ──────────────────────────────────────
 #
 # The emacs/ subdirectory contains the tintin-mode Emacs package as a
-# bundled contrib. It has its own standalone Makefile (not autotools)
-# that handles byte-compilation, testing, formatting, and installation.
-# These targets delegate to it, passing the configured prefix through.
+# bundled contrib, built via autotools (emacs/Makefile.am).  These
+# targets delegate to the autotools build directory for the Emacs-
+# dependent tasks (byte-compilation, testing, formatting, installation).
+# The main build does not require Emacs; these are for development.
 #
-# Usage:
+# Usage (from the build directory):
 #   make emacs          # byte-compile
 #   make emacs-test     # run ERT test suite
 #   make emacs-format   # indent elisp + prettier on Markdown
@@ -105,31 +103,31 @@ emacs:
 	    echo "emacs not found - install Emacs or set EMACS=<path>" >&2; \
 	    exit 1; \
 	}
-	$(MAKE) -C $(top_srcdir)/emacs all EMACS="$(EMACS)" prefix="$(prefix)"
+	$(MAKE) -C $(top_builddir)/emacs byte-compile EMACS="$(EMACS)"
 
 emacs-test:
 	@command -v $(EMACS) >/dev/null 2>&1 || { \
 	    echo "emacs not found - install Emacs or set EMACS=<path>" >&2; \
 	    exit 1; \
 	}
-	$(MAKE) -C $(top_srcdir)/emacs test EMACS="$(EMACS)" prefix="$(prefix)"
+	$(MAKE) -C $(top_builddir)/emacs test EMACS="$(EMACS)"
 
 emacs-format:
 	@command -v $(EMACS) >/dev/null 2>&1 || { \
 	    echo "emacs not found - install Emacs or set EMACS=<path>" >&2; \
 	    exit 1; \
 	}
-	$(MAKE) -C $(top_srcdir)/emacs format EMACS="$(EMACS)" prefix="$(prefix)"
+	$(MAKE) -C $(top_builddir)/emacs elisp-format EMACS="$(EMACS)" srcdir=$(top_srcdir)/emacs
 
 emacs-install:
 	@command -v $(EMACS) >/dev/null 2>&1 || { \
 	    echo "emacs not found - install Emacs or set EMACS=<path>" >&2; \
 	    exit 1; \
 	}
-	$(MAKE) -C $(top_srcdir)/emacs install EMACS="$(EMACS)" prefix="$(prefix)"
+	$(MAKE) -C $(top_builddir)/emacs install EMACS="$(EMACS)"
 
 emacs-clean:
-	$(MAKE) -C $(top_srcdir)/emacs clean
+	$(MAKE) -C $(top_builddir)/emacs clean
 
 # Bear target — produce compile_commands.json for clangd by intercepting
 # the build. Cleans first so bear sees every compile invocation.
