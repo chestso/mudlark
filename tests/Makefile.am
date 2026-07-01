@@ -10,7 +10,8 @@ test_telnet_app_CPPFLAGS = \
     $(BOBA_CFLAGS)
 test_telnet_app_LDADD = \
     $(top_builddir)/src/mudlark-telnet_app.o \
-    $(BOBA_LIBS)
+    $(BOBA_LIBS) \
+    $(SOCKET_LIBS)
 
 test_event_loop_SOURCES = test_event_loop.c
 test_event_loop_CPPFLAGS = \
@@ -22,7 +23,8 @@ test_event_loop_LDADD = \
     $(top_builddir)/src/mudlark-logging.o \
     $(top_builddir)/src/mudlark-path_utils.o \
     $(DITTY_LIBS) \
-    $(BOBA_LIBS)
+    $(BOBA_LIBS) \
+    $(SOCKET_LIBS)
 
 test_add_hook_fixnum_SOURCES = test_add_hook_fixnum.c
 test_add_hook_fixnum_CPPFLAGS = \
@@ -37,7 +39,8 @@ test_add_hook_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-path_utils.o \
     $(top_builddir)/src/mudlark-terminal_caps.o \
     $(DITTY_LIBS) \
-    $(BOBA_LIBS)
+    $(BOBA_LIBS) \
+    $(SOCKET_LIBS)
 
 test_telnet_connect_fixnum_SOURCES = test_telnet_connect_fixnum.c
 test_telnet_connect_fixnum_CPPFLAGS = \
@@ -52,7 +55,8 @@ test_telnet_connect_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-path_utils.o \
     $(top_builddir)/src/mudlark-terminal_caps.o \
     $(DITTY_LIBS) \
-    $(BOBA_LIBS)
+    $(BOBA_LIBS) \
+    $(SOCKET_LIBS)
 
 # Test programs (C, Lisp, Python, shell). All entries are run by
 # `make check`; missing prerequisites must skip via exit 77, never silently

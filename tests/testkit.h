@@ -15,8 +15,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <io.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define DEVNULL "NUL"
+
+static void testkit_wsa_startup(void)
+{
+    static int wsa_initialized = 0;
+    if (!wsa_initialized) {
+        WSADATA d;
+        WSAStartup(MAKEWORD(2, 2), &d);
+        wsa_initialized = 1;
+    }
+}
+#else
 #include <sys/socket.h>
 #include <unistd.h>
+#define DEVNULL "/dev/null"
+#endif
 
 #include <boba/cmd.h>
 #include <boba/component.h>
@@ -91,7 +110,7 @@ static TuiComponent testkit_noop_component = {
 /* Create a test runtime with noop component and /dev/null output */
 static TuiRuntime *testkit_create_runtime(void)
 {
-    FILE *devnull = fopen("/dev/null", "w");
+    FILE *devnull = fopen(DEVNULL, "w");
     assert(devnull != NULL);
 
     TuiRuntimeConfig cfg = { .output = devnull };
@@ -116,6 +135,39 @@ static void testkit_free_runtime(TuiRuntime *rt)
 
 /* Create a socketpair: returns the "capture" fd, sets *telnet_fd to the other.
  * The capture fd is set non-blocking for reading. */
+#ifdef _WIN32
+static int testkit_create_socketpair(int *telnet_fd)
+{
+    testkit_wsa_startup();
+    SOCKET listen_sd = socket(AF_INET, SOCK_STREAM, 0);
+    assert(listen_sd != INVALID_SOCKET);
+
+    struct sockaddr_in addr = { 0 };
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = 0; /* auto-assign */
+    int ret = bind(listen_sd, (struct sockaddr *)&addr, sizeof(addr));
+    assert(ret == 0);
+
+    socklen_t addrlen = sizeof(addr);
+    getsockname(listen_sd, (struct sockaddr *)&addr, &addrlen);
+    listen(listen_sd, 1);
+
+    SOCKET client_sd = socket(AF_INET, SOCK_STREAM, 0);
+    assert(client_sd != INVALID_SOCKET);
+    connect(client_sd, (struct sockaddr *)&addr, sizeof(addr));
+
+    SOCKET server_sd = accept(listen_sd, NULL, NULL);
+    assert(server_sd != INVALID_SOCKET);
+    closesocket(listen_sd);
+
+    u_long mode = 1;
+    ioctlsocket(server_sd, FIONBIO, &mode);
+
+    *telnet_fd = (int)client_sd;
+    return (int)server_sd; /* capture fd */
+}
+#else
 static int testkit_create_socketpair(int *telnet_fd)
 {
     int fds[2];
@@ -129,6 +181,7 @@ static int testkit_create_socketpair(int *telnet_fd)
     *telnet_fd = fds[1];
     return fds[0]; /* capture fd */
 }
+#endif
 
 /* Create a Telnet connected to a socketpair.
  * Returns the Telnet; sets *capture_fd to the readable end. */
@@ -150,9 +203,17 @@ static int testkit_recv_all(int fd, char *buf, int bufsize)
 {
     int total = 0;
     while (total < bufsize - 1) {
+#ifdef _WIN32
+        int n = recv(fd, buf + total, bufsize - 1 - total, 0);
+        if (n <= 0) {
+            WSAGetLastError();
+            break;
+        }
+#else
         int n = read(fd, buf + total, bufsize - 1 - total);
         if (n <= 0)
             break;
+#endif
         total += n;
     }
     buf[total] = '\0';

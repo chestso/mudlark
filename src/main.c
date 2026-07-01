@@ -44,6 +44,7 @@
  * These hooks write sanitizer reports to files, and a signal handler restores
  * the terminal and points the user at the diagnostics before re-raising. */
 
+#ifndef _WIN32
 /* Sanitizer reports -> files (survive the stderr redirect), with stacktraces. */
 const char *__asan_default_options(void)
 {
@@ -96,6 +97,7 @@ static void install_crash_handlers(void)
     for (size_t i = 0; i < sizeof(sigs) / sizeof(sigs[0]); i++)
         sigaction(sigs[i], &sa, NULL);
 }
+#endif /* _WIN32 */
 
 /* Global state */
 static Telnet *g_telnet = NULL;
@@ -536,6 +538,7 @@ int main(int argc, char *argv[])
      * (e.g. a sanitizer abort) can restore the terminal and tell the user where
      * to look. stderr is redirected to the log file later, once the TUI is up,
      * so fatal errors before that still reach the real terminal. */
+#ifndef _WIN32
     if (isatty(STDIN_FILENO) && tcgetattr(STDIN_FILENO, &g_saved_termios) == 0)
         g_have_saved_termios = 1;
     snprintf(g_log_path, sizeof(g_log_path), "/tmp/mudlark.%d.log",
@@ -547,6 +550,7 @@ int main(int argc, char *argv[])
     if (g_crash_msg_len < 0)
         g_crash_msg_len = 0;
     install_crash_handlers();
+#endif
 
     /* Initialize GC */
     GC_INIT();
@@ -622,14 +626,18 @@ int main(int argc, char *argv[])
     /* From here the TUI owns the screen; redirect stderr to the log file so raw
      * diagnostics (sanitizer reports, libc messages) are captured instead of
      * corrupting the display. Earlier fatal errors still reached the terminal. */
+#ifndef _WIN32
     if (isatty(STDERR_FILENO))
         freopen(g_log_path, "w", stderr);
+#endif
 
     /* Enter alt screen before loading scripts so their output
      * (script-echo banners, log lines) goes to the alt buffer,
      * not the main screen that gets restored on exit */
     tui_runtime_start(g_runtime);
+#ifndef _WIN32
     g_tui_started = 1;
+#endif
 
     /* Create default session and load init.lisp now that TUI is ready
      * (needs terminal-echo, termcap, etc.) */

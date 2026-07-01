@@ -5,6 +5,7 @@
 ;; and the alias expansion architecture (aliases return expanded text).
 
 (load "tests/test-helpers.lisp")
+(define tmpdir (or (getenv "TEMP") (getenv "TMPDIR") "/tmp"))
 (defmacro load-system-file (name) `(load (string-append "lisp/contrib/" ,name)))
 (load "lisp/contrib/tintin.lisp")
 (set! *tintin-speedwalk-enabled* #f) ;; Disable speedwalk to avoid interference
@@ -425,7 +426,7 @@
 (set! *tintin-speedwalk-diagonals* #f)
 
 ;; Write state to file in TinTin++ syntax
-(tintin-save-state "/tmp/bloom-test-write.tin")
+(tintin-save-state (string-append tmpdir "/bloom-test-write.tin"))
 
 ;; Clear all state
 (set! *tintin-custom-colors* (make-hash-table))
@@ -435,7 +436,7 @@
 (set! *tintin-actions* (make-hash-table))
 
 ;; Read it back via tintin-read-file (TinTin++ parser)
-(tintin-read-file "/tmp/bloom-test-write.tin")
+(tintin-read-file (string-append tmpdir "/bloom-test-write.tin"))
 
 ;; Verify colors
 (assert-equal (hash-ref *tintin-custom-colors* "danger") "bold <Ffe3e78>"

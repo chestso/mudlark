@@ -12,6 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define DEVNULL "NUL"
+#else
+#define DEVNULL "/dev/null"
+#endif
+
 #include <boba/cmd.h>
 #include <boba/component.h>
 #include <boba/components/viewport.h>
@@ -108,7 +114,7 @@ static void test_component_init(void)
 /* Test that component can be used with tui_runtime_create */
 static void test_component_with_runtime(void)
 {
-    FILE *devnull = fopen("/dev/null", "w");
+    FILE *devnull = fopen(DEVNULL, "w");
     assert(devnull != NULL);
 
     TelnetAppConfig app_cfg = {
@@ -337,7 +343,7 @@ static void test_page_keys_no_cmd(void)
 /* Test that runtime flush renders without crashing */
 static void test_runtime_flush_renders(void)
 {
-    FILE *devnull = fopen("/dev/null", "w");
+    FILE *devnull = fopen(DEVNULL, "w");
     assert(devnull != NULL);
 
     TelnetAppConfig app_cfg = {
@@ -370,7 +376,7 @@ static void test_runtime_flush_renders(void)
 /* Test that sending WINDOW_SIZE through runtime updates the component */
 static void test_runtime_sends_window_size(void)
 {
-    FILE *devnull = fopen("/dev/null", "w");
+    FILE *devnull = fopen(DEVNULL, "w");
     assert(devnull != NULL);
 
     TelnetAppConfig app_cfg = {

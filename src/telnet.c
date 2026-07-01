@@ -356,7 +356,13 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
             /* Socket became writable — check if connection actually succeeded */
             int so_error = 0;
             socklen_t so_len = sizeof(so_error);
-            getsockopt(t->socket, SOL_SOCKET, SO_ERROR, &so_error, &so_len);
+            getsockopt(t->socket, SOL_SOCKET, SO_ERROR,
+#ifdef _WIN32
+                       (char *)&so_error,
+#else
+                       &so_error,
+#endif
+                       &so_len);
             if (so_error == 0) {
                 connected = 1;
                 break;
