@@ -502,7 +502,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Error: %s requires an argument\n", arg);
                 return 1;
             }
-            bloom_log_set_filter(argv[i]);
+            mudlark_log_set_filter(argv[i]);
         } else if (strncmp(arg, "--", 2) == 0 && strlen(arg) > 2) {
             /* Unknown long option: collect for Lisp dispatch */
             const char *flag = arg + 2;
@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
 
     /* Detect terminal capabilities */
     if (termcaps_init() < 0) {
-        bloom_log(LOG_WARN, NULL, "Could not detect terminal capabilities");
+        mudlark_log(LOG_WARN, NULL, "Could not detect terminal capabilities");
     }
 
     /* Initialize Lisp */
@@ -621,7 +621,7 @@ int main(int argc, char *argv[])
     lisp_x_register_status_sink(g_app);
 
     /* Now that viewport is available, route log messages there */
-    bloom_log_set_echo(echo_to_viewport);
+    mudlark_log_set_echo(echo_to_viewport);
 
     /* From here the TUI owns the screen; redirect stderr to the log file so raw
      * diagnostics (sanitizer reports, libc messages) are captured instead of
@@ -660,7 +660,7 @@ int main(int argc, char *argv[])
      * are available, and after viewport so logs are visible) */
     for (int i = 0; i < load_file_count; i++) {
         if (lisp_x_load_file(load_files[i]) < 0) {
-            bloom_log(LOG_ERROR, "lisp", "Failed to load: %s", load_files[i]);
+            mudlark_log(LOG_ERROR, "lisp", "Failed to load: %s", load_files[i]);
         }
     }
 

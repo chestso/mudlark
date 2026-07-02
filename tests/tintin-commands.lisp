@@ -426,7 +426,7 @@
 (set! *tintin-speedwalk-diagonals* #f)
 
 ;; Write state to file in TinTin++ syntax
-(tintin-save-state (string-append tmpdir "/bloom-test-write.tin"))
+(tintin-save-state (string-append tmpdir "/mudlark-test-write.tin"))
 
 ;; Clear all state
 (set! *tintin-custom-colors* (make-hash-table))
@@ -436,7 +436,7 @@
 (set! *tintin-actions* (make-hash-table))
 
 ;; Read it back via tintin-read-file (TinTin++ parser)
-(tintin-read-file (string-append tmpdir "/bloom-test-write.tin"))
+(tintin-read-file (string-append tmpdir "/mudlark-test-write.tin"))
 
 ;; Verify colors
 (assert-equal (hash-ref *tintin-custom-colors* "danger") "bold <Ffe3e78>"

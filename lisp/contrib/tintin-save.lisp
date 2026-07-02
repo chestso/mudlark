@@ -21,7 +21,7 @@
     ;; Header
     (write-line file "// mudlark state file")
     (write-line file "")
-    ;; Custom colors (bloom extension, before highlights that may reference them)
+    ;; Custom colors (mudlark extension, before highlights that may reference them)
     (if (> (hash-count *tintin-custom-colors*) 0)
       (progn (write-line file "// Colors")
         (let ((entries (hash-entries *tintin-custom-colors*)))

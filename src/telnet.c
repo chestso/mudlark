@@ -132,8 +132,8 @@ static int telnet_open_log(Telnet *t, const char *log_dir)
     /* Open log file in append mode */
     t->log_file = file_open(t->log_filename, "a");
     if (!t->log_file) {
-        bloom_log(LOG_WARN, "telnet", "Failed to open telnet log file: %s",
-                  t->log_filename);
+        mudlark_log(LOG_WARN, "telnet", "Failed to open telnet log file: %s",
+                    t->log_filename);
         return -1;
     }
 
@@ -386,9 +386,9 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
             if (progress_fn && n > 0) {
                 progress_fn(retry_msg, (size_t)n);
             }
-            bloom_log(LOG_INFO, "telnet",
-                      "Connection attempt %d/%d timed out, retrying", attempt + 1,
-                      total_attempts);
+            mudlark_log(LOG_INFO, "telnet",
+                        "Connection attempt %d/%d timed out, retrying", attempt + 1,
+                        total_attempts);
         }
     }
 
@@ -422,9 +422,9 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
             BOOL optval = TRUE;
             if (setsockopt(t->socket, SOL_SOCKET, SO_KEEPALIVE, (char *)&optval,
                            sizeof(optval)) < 0) {
-                bloom_log(LOG_WARN, "telnet",
-                          "Failed to enable TCP keepalive (error %d)",
-                          WSAGetLastError());
+                mudlark_log(LOG_WARN, "telnet",
+                            "Failed to enable TCP keepalive (error %d)",
+                            WSAGetLastError());
             } else {
                 struct tcp_keepalive ka;
                 ka.onoff = 1;
@@ -434,23 +434,23 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
                 DWORD bytes_returned;
                 if (WSAIoctl(t->socket, SIO_KEEPALIVE_VALS, &ka, sizeof(ka), NULL, 0,
                              &bytes_returned, NULL, NULL) != 0) {
-                    bloom_log(LOG_WARN, "telnet",
-                              "Failed to set TCP keepalive timing (error %d)",
-                              WSAGetLastError());
+                    mudlark_log(LOG_WARN, "telnet",
+                                "Failed to set TCP keepalive timing (error %d)",
+                                WSAGetLastError());
                 }
             }
 #else
             int optval = 1;
             if (setsockopt(t->socket, SOL_SOCKET, SO_KEEPALIVE, &optval,
                            sizeof(optval)) < 0) {
-                bloom_log(LOG_WARN, "telnet", "Failed to enable TCP keepalive: %s",
-                          strerror(errno));
+                mudlark_log(LOG_WARN, "telnet", "Failed to enable TCP keepalive: %s",
+                            strerror(errno));
             } else {
 #ifdef TCP_KEEPIDLE
                 if (setsockopt(t->socket, IPPROTO_TCP, TCP_KEEPIDLE, &keepalive_time,
                                sizeof(keepalive_time)) < 0) {
-                    bloom_log(LOG_WARN, "telnet", "Failed to set TCP_KEEPIDLE: %s",
-                              strerror(errno));
+                    mudlark_log(LOG_WARN, "telnet", "Failed to set TCP_KEEPIDLE: %s",
+                                strerror(errno));
                 }
 #else
                 (void)keepalive_time;
@@ -458,8 +458,8 @@ int telnet_connect(Telnet *t, const char *hostname, int port,
 #ifdef TCP_KEEPINTVL
                 if (setsockopt(t->socket, IPPROTO_TCP, TCP_KEEPINTVL,
                                &keepalive_interval, sizeof(keepalive_interval)) < 0) {
-                    bloom_log(LOG_WARN, "telnet", "Failed to set TCP_KEEPINTVL: %s",
-                              strerror(errno));
+                    mudlark_log(LOG_WARN, "telnet", "Failed to set TCP_KEEPINTVL: %s",
+                                strerror(errno));
                 }
 #else
                 (void)keepalive_interval;
@@ -581,23 +581,23 @@ int telnet_receive(Telnet *t, char *buffer, size_t bufsize)
             /* Would block or interrupted - no data available, not an error */
             return 0;
         }
-        bloom_log(LOG_ERROR, "telnet", "recv() returned -1, WSAGetLastError=%d",
-                  error);
+        mudlark_log(LOG_ERROR, "telnet", "recv() returned -1, WSAGetLastError=%d",
+                    error);
 #else
         if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
             /* Would block or interrupted - no data available, not an error */
             return 0;
         }
-        bloom_log(LOG_ERROR, "telnet", "recv() returned -1, errno=%d (%s)", errno,
-                  strerror(errno));
+        mudlark_log(LOG_ERROR, "telnet", "recv() returned -1, errno=%d (%s)", errno,
+                    strerror(errno));
 #endif
         /* Connection error */
         telnet_disconnect(t);
         return -1;
     } else if (received == 0) {
         /* recv() returning 0 means graceful close (peer sent FIN) */
-        bloom_log(LOG_ERROR, "telnet",
-                  "recv() returned 0 (peer closed connection)");
+        mudlark_log(LOG_ERROR, "telnet",
+                    "recv() returned 0 (peer closed connection)");
         telnet_disconnect(t);
         return -1;
     }

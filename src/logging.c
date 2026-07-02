@@ -25,7 +25,7 @@ static int g_filter_active = 0;
 
 static char g_format_buf[LOG_FORMAT_BUF_SIZE];
 
-void bloom_log_set_echo(LogEchoFn fn) { g_echo_fn = fn; }
+void mudlark_log_set_echo(LogEchoFn fn) { g_echo_fn = fn; }
 
 static LogLevel parse_level(const char *s, size_t len)
 {
@@ -40,7 +40,7 @@ static LogLevel parse_level(const char *s, size_t len)
     return LOG_INFO; /* default */
 }
 
-void bloom_log_set_filter(const char *spec)
+void mudlark_log_set_filter(const char *spec)
 {
     g_filter_count = 0;
     g_default_level = LOG_ERROR + 1;
@@ -108,7 +108,7 @@ static int filter_allows(LogLevel level, const char *tag)
     return level >= g_default_level;
 }
 
-void bloom_log(LogLevel level, const char *tag, const char *fmt, ...)
+void mudlark_log(LogLevel level, const char *tag, const char *fmt, ...)
 {
     int show_in_viewport = filter_allows(level, tag);
 

@@ -570,16 +570,16 @@ static int load_lisp_system_file(const char *filename, Environment *env)
             LispObject *result = lisp_load_file(search_paths[i], env);
             if (result && LISP_TYPE(result) == LISP_ERROR) {
                 char *err_str = lisp_print(result);
-                bloom_log(LOG_ERROR, "lisp", "Error loading %s: %s", search_paths[i],
-                          err_str);
+                mudlark_log(LOG_ERROR, "lisp", "Error loading %s: %s", search_paths[i],
+                            err_str);
             } else {
-                bloom_log(LOG_INFO, "lisp", "Loaded: %s", search_paths[i]);
+                mudlark_log(LOG_INFO, "lisp", "Loaded: %s", search_paths[i]);
                 return 1;
             }
         }
     }
 
-    bloom_log(LOG_ERROR, "lisp", "Failed to load Lisp file: %s", filename);
+    mudlark_log(LOG_ERROR, "lisp", "Failed to load Lisp file: %s", filename);
     return 0;
 }
 
@@ -589,32 +589,32 @@ static LispObject *sym_log_info = NULL;
 static LispObject *sym_log_warn = NULL;
 static LispObject *sym_log_error = NULL;
 
-/* Builtin: bloom-log - Log a message with level and tag */
-static LispObject *builtin_bloom_log(LispObject *args, Environment *env)
+/* Builtin: mudlark-log - Log a message with level and tag */
+static LispObject *builtin_mudlark_log(LispObject *args, Environment *env)
 {
     (void)env;
 
     if (args == NIL)
-        return lisp_make_error("bloom-log requires 3 arguments: level tag message");
+        return lisp_make_error("mudlark-log requires 3 arguments: level tag message");
 
     LispObject *level_obj = lisp_car(args);
     args = lisp_cdr(args);
     if (args == NIL)
-        return lisp_make_error("bloom-log requires 3 arguments: level tag message");
+        return lisp_make_error("mudlark-log requires 3 arguments: level tag message");
 
     LispObject *tag_obj = lisp_car(args);
     args = lisp_cdr(args);
     if (args == NIL)
-        return lisp_make_error("bloom-log requires 3 arguments: level tag message");
+        return lisp_make_error("mudlark-log requires 3 arguments: level tag message");
 
     LispObject *msg_obj = lisp_car(args);
 
     if (LISP_TYPE(level_obj) != LISP_SYMBOL)
-        return lisp_make_error("bloom-log: level must be a symbol");
+        return lisp_make_error("mudlark-log: level must be a symbol");
     if (LISP_TYPE(tag_obj) != LISP_STRING)
-        return lisp_make_error("bloom-log: tag must be a string");
+        return lisp_make_error("mudlark-log: tag must be a string");
     if (LISP_TYPE(msg_obj) != LISP_STRING)
-        return lisp_make_error("bloom-log: message must be a string");
+        return lisp_make_error("mudlark-log: message must be a string");
 
     LogLevel level;
     if (level_obj == sym_log_debug)
@@ -627,9 +627,9 @@ static LispObject *builtin_bloom_log(LispObject *args, Environment *env)
         level = LOG_ERROR;
     else
         return lisp_make_error(
-            "bloom-log: level must be 'debug, 'info, 'warn, or 'error");
+            "mudlark-log: level must be 'debug, 'info, 'warn, or 'error");
 
-    bloom_log(level, LISP_STR_VAL(tag_obj), "%s", LISP_STR_VAL(msg_obj));
+    mudlark_log(level, LISP_STR_VAL(tag_obj), "%s", LISP_STR_VAL(msg_obj));
     return NIL;
 }
 
@@ -645,7 +645,7 @@ static LispObject *builtin_set_log_filter(LispObject *args, Environment *env)
     if (LISP_TYPE(spec_obj) != LISP_STRING)
         return lisp_make_error("set-log-filter: argument must be a string");
 
-    bloom_log_set_filter(LISP_STR_VAL(spec_obj));
+    mudlark_log_set_filter(LISP_STR_VAL(spec_obj));
     return NIL;
 }
 
@@ -1004,11 +1004,11 @@ static LispObject *builtin_run_hook(LispObject *args, Environment *env)
             fn = env_lookup(env, LISP_SYM_VAL(fn_sym));
         }
         if (!fn || !lisp_is_callable(fn)) {
-            bloom_log(LOG_ERROR, "hooks",
-                      "run-hook %s: handler '%s' is not callable", name,
-                      (fn_sym && LISP_TYPE(fn_sym) == LISP_SYMBOL)
-                          ? LISP_SYM_VAL(fn_sym)->name
-                          : "?");
+            mudlark_log(LOG_ERROR, "hooks",
+                        "run-hook %s: handler '%s' is not callable", name,
+                        (fn_sym && LISP_TYPE(fn_sym) == LISP_SYMBOL)
+                            ? LISP_SYM_VAL(fn_sym)->name
+                            : "?");
             hook_list = lisp_cdr(hook_list);
             continue;
         }
@@ -1019,7 +1019,7 @@ static LispObject *builtin_run_hook(LispObject *args, Environment *env)
         if (result && LISP_TYPE(result) == LISP_ERROR) {
             char *err_str = lisp_print(result);
             if (err_str) {
-                bloom_log(LOG_ERROR, "hooks", "run-hook %s: %s", name, err_str);
+                mudlark_log(LOG_ERROR, "hooks", "run-hook %s: %s", name, err_str);
             }
         }
 
@@ -1074,11 +1074,11 @@ static LispObject *builtin_run_filter_hook(LispObject *args, Environment *env)
             fn = env_lookup(env, LISP_SYM_VAL(fn_sym));
         }
         if (!fn || !lisp_is_callable(fn)) {
-            bloom_log(LOG_ERROR, "hooks",
-                      "run-filter-hook %s: handler '%s' is not callable", name,
-                      (fn_sym && LISP_TYPE(fn_sym) == LISP_SYMBOL)
-                          ? LISP_SYM_VAL(fn_sym)->name
-                          : "?");
+            mudlark_log(LOG_ERROR, "hooks",
+                        "run-filter-hook %s: handler '%s' is not callable", name,
+                        (fn_sym && LISP_TYPE(fn_sym) == LISP_SYMBOL)
+                            ? LISP_SYM_VAL(fn_sym)->name
+                            : "?");
             hook_list = lisp_cdr(hook_list);
             continue;
         }
@@ -1090,7 +1090,7 @@ static LispObject *builtin_run_filter_hook(LispObject *args, Environment *env)
         if (result && LISP_TYPE(result) == LISP_ERROR) {
             char *err_str = lisp_print(result);
             if (err_str) {
-                bloom_log(LOG_ERROR, "hooks", "run-filter-hook %s: %s", name, err_str);
+                mudlark_log(LOG_ERROR, "hooks", "run-filter-hook %s: %s", name, err_str);
             }
         } else if (!result || result == NIL) {
             consumed = 1;
@@ -1145,11 +1145,11 @@ static LispObject *builtin_run_transform_hook(LispObject *args,
             fn = env_lookup(env, LISP_SYM_VAL(fn_sym));
         }
         if (!fn || !lisp_is_callable(fn)) {
-            bloom_log(LOG_ERROR, "hooks",
-                      "run-transform-hook %s: handler '%s' is not callable", name,
-                      (fn_sym && LISP_TYPE(fn_sym) == LISP_SYMBOL)
-                          ? LISP_SYM_VAL(fn_sym)->name
-                          : "?");
+            mudlark_log(LOG_ERROR, "hooks",
+                        "run-transform-hook %s: handler '%s' is not callable", name,
+                        (fn_sym && LISP_TYPE(fn_sym) == LISP_SYMBOL)
+                            ? LISP_SYM_VAL(fn_sym)->name
+                            : "?");
             hook_list = lisp_cdr(hook_list);
             continue;
         }
@@ -1167,8 +1167,8 @@ static LispObject *builtin_run_transform_hook(LispObject *args,
                 if (result && LISP_TYPE(result) == LISP_ERROR) {
                     char *err_str = lisp_print(result);
                     if (err_str) {
-                        bloom_log(LOG_ERROR, "hooks", "run-transform-hook %s: %s", name,
-                                  err_str);
+                        mudlark_log(LOG_ERROR, "hooks", "run-transform-hook %s: %s", name,
+                                    err_str);
                     }
                     /* On error, keep original element */
                     *result_tail = lisp_make_cons(item, NIL);
@@ -1202,8 +1202,8 @@ static LispObject *builtin_run_transform_hook(LispObject *args,
             if (result && LISP_TYPE(result) == LISP_ERROR) {
                 char *err_str = lisp_print(result);
                 if (err_str) {
-                    bloom_log(LOG_ERROR, "hooks", "run-transform-hook %s: %s", name,
-                              err_str);
+                    mudlark_log(LOG_ERROR, "hooks", "run-transform-hook %s: %s", name,
+                                err_str);
                 }
                 /* On error, keep previous value */
             } else {
@@ -1382,7 +1382,7 @@ int lisp_x_dispatch_cli_args(void)
         }
 
         if (!handler_sym || handler_sym == NIL) {
-            bloom_log(LOG_ERROR, "cli", "Unknown flag: --%s", arg->flag);
+            mudlark_log(LOG_ERROR, "cli", "Unknown flag: --%s", arg->flag);
             if (echo_callback) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Unknown flag: --%s\r\n", arg->flag);
@@ -1395,8 +1395,8 @@ int lisp_x_dispatch_cli_args(void)
         /* Resolve symbol to function and call directly */
         LispObject *handler_fn = env_lookup(env, LISP_SYM_VAL(handler_sym));
         if (!handler_fn || !lisp_is_callable(handler_fn)) {
-            bloom_log(LOG_ERROR, "cli", "CLI handler for --%s is not callable",
-                      arg->flag);
+            mudlark_log(LOG_ERROR, "cli", "CLI handler for --%s is not callable",
+                        arg->flag);
             errors++;
             continue;
         }
@@ -1405,7 +1405,7 @@ int lisp_x_dispatch_cli_args(void)
         volatile LispObject *result = lisp_call_1(handler_fn, value_arg, env);
         if (result && LISP_TYPE((LispObject *)result) == LISP_ERROR) {
             char *err = lisp_print((LispObject *)result);
-            bloom_log(LOG_ERROR, "cli", "Error handling --%s: %s", arg->flag, err);
+            mudlark_log(LOG_ERROR, "cli", "Error handling --%s: %s", arg->flag, err);
             errors++;
         }
     }
@@ -1465,14 +1465,14 @@ static void register_builtins(Environment *env)
     sym_tc_fg_color = lisp_intern("fg-color");
     sym_tc_bg_color = lisp_intern("bg-color");
 
-    /* Intern log level symbols for pointer comparison in bloom-log */
+    /* Intern log level symbols for pointer comparison in mudlark-log */
     sym_log_debug = lisp_intern("debug");
     sym_log_info = lisp_intern("info");
     sym_log_warn = lisp_intern("warn");
     sym_log_error = lisp_intern("error");
 
     /* Logging builtins */
-    REG("bloom-log", builtin_bloom_log);
+    REG("mudlark-log", builtin_mudlark_log);
     REG("set-log-filter", builtin_set_log_filter);
 
     /* Status text — raw sink for the right-aligned title rendered into
@@ -1517,13 +1517,13 @@ int lisp_x_init(void)
 {
     Environment *base_env = lisp_init();
     if (!base_env) {
-        bloom_log(LOG_ERROR, "lisp", "Failed to initialize Lisp interpreter");
+        mudlark_log(LOG_ERROR, "lisp", "Failed to initialize Lisp interpreter");
         return -1;
     }
 
     /* Initialize session manager with base environment */
     if (session_manager_init(base_env) < 0) {
-        bloom_log(LOG_ERROR, "lisp", "Failed to initialize session manager");
+        mudlark_log(LOG_ERROR, "lisp", "Failed to initialize session manager");
         lisp_cleanup();
         return -1;
     }
@@ -1536,7 +1536,7 @@ int lisp_x_init(void)
 
     if (!ansi_strip_buf || !telnet_filter_buf || !telnet_filter_temp_buf ||
         !pending_send_buf) {
-        bloom_log(LOG_ERROR, "lisp", "Failed to allocate buffers");
+        mudlark_log(LOG_ERROR, "lisp", "Failed to allocate buffers");
         lisp_x_cleanup();
         return -1;
     }
@@ -1606,7 +1606,7 @@ int lisp_x_load_file(const char *filepath)
         LispObject *result = lisp_load_file(effective_path, env);
         if (result && LISP_TYPE(result) == LISP_ERROR) {
             char *err_str = lisp_print(result);
-            bloom_log(LOG_ERROR, "lisp", "Error loading %s: %s", filepath, err_str);
+            mudlark_log(LOG_ERROR, "lisp", "Error loading %s: %s", filepath, err_str);
             ret = -1;
         } else {
             ret = 0;
@@ -1676,24 +1676,24 @@ void lisp_x_call_telnet_input_hook(const char *text, size_t len)
     size_t stripped_len = 0;
     char *stripped_text = strip_ansi_codes(text, len, &stripped_len);
     if (!stripped_text || stripped_len == 0) {
-        bloom_log(LOG_DEBUG, "hooks",
-                  "input-hook: stripped text empty (raw len=%zu)", len);
+        mudlark_log(LOG_DEBUG, "hooks",
+                    "input-hook: stripped text empty (raw len=%zu)", len);
         return;
     }
 
     LispObject *hook =
         env_lookup(env, LISP_SYM_VAL(lisp_intern("telnet-input-hook")));
     if (!lisp_is_callable(hook)) {
-        bloom_log(LOG_DEBUG, "hooks", "input-hook: hook not found or wrong type");
+        mudlark_log(LOG_DEBUG, "hooks", "input-hook: hook not found or wrong type");
         return;
     }
 
-    bloom_log(LOG_DEBUG, "hooks", "input-hook: calling with %zu bytes",
-              stripped_len);
+    mudlark_log(LOG_DEBUG, "hooks", "input-hook: calling with %zu bytes",
+                stripped_len);
 
     volatile LispObject *text_arg = lisp_make_string(stripped_text);
     if (!text_arg || LISP_TYPE((LispObject *)text_arg) == LISP_ERROR) {
-        bloom_log(LOG_DEBUG, "hooks", "input-hook: failed to create string arg");
+        mudlark_log(LOG_DEBUG, "hooks", "input-hook: failed to create string arg");
         return;
     }
 
@@ -1704,7 +1704,7 @@ void lisp_x_call_telnet_input_hook(const char *text, size_t len)
     if (result && LISP_TYPE(result) == LISP_ERROR) {
         char *err_str = lisp_print(result);
         if (err_str) {
-            bloom_log(LOG_ERROR, "hooks", "telnet-input-hook: %s", err_str);
+            mudlark_log(LOG_ERROR, "hooks", "telnet-input-hook: %s", err_str);
         }
     }
 }
@@ -1721,17 +1721,17 @@ int lisp_x_call_user_input_hook(const char *text, size_t len)
     LispObject *hook =
         env_lookup(env, LISP_SYM_VAL(lisp_intern("user-input-hook")));
     if (!lisp_is_callable(hook)) {
-        bloom_log(LOG_DEBUG, "hooks",
-                  "user-input-hook: hook not found or wrong type");
+        mudlark_log(LOG_DEBUG, "hooks",
+                    "user-input-hook: hook not found or wrong type");
         return 0;
     }
 
-    bloom_log(LOG_DEBUG, "hooks", "user-input-hook: calling with %zu bytes", len);
+    mudlark_log(LOG_DEBUG, "hooks", "user-input-hook: calling with %zu bytes", len);
 
     volatile LispObject *text_arg = lisp_make_string(text);
     if (!text_arg || LISP_TYPE((LispObject *)text_arg) == LISP_ERROR) {
-        bloom_log(LOG_DEBUG, "hooks",
-                  "user-input-hook: failed to create string arg");
+        mudlark_log(LOG_DEBUG, "hooks",
+                    "user-input-hook: failed to create string arg");
         return 0;
     }
 
@@ -1742,7 +1742,7 @@ int lisp_x_call_user_input_hook(const char *text, size_t len)
     if (result && LISP_TYPE(result) == LISP_ERROR) {
         char *err_str = lisp_print(result);
         if (err_str) {
-            bloom_log(LOG_ERROR, "hooks", "user-input-hook: %s", err_str);
+            mudlark_log(LOG_ERROR, "hooks", "user-input-hook: %s", err_str);
         }
         return 0;
     }
@@ -1768,7 +1768,7 @@ void lisp_x_run_timers(void)
     if (result && LISP_TYPE(result) == LISP_ERROR) {
         char *err_str = lisp_print(result);
         if (err_str) {
-            bloom_log(LOG_ERROR, "hooks", "run-timers: %s", err_str);
+            mudlark_log(LOG_ERROR, "hooks", "run-timers: %s", err_str);
         }
     }
 }
@@ -1844,7 +1844,7 @@ const char *lisp_x_call_telnet_input_transform_hook(const char *text,
     if (!result || LISP_TYPE(result) == LISP_ERROR) {
         char *err_str = lisp_print(result);
         if (err_str) {
-            bloom_log(LOG_ERROR, "hooks", "telnet-input-transform-hook: %s", err_str);
+            mudlark_log(LOG_ERROR, "hooks", "telnet-input-transform-hook: %s", err_str);
         }
         *out_len = len;
         return text;
@@ -1896,7 +1896,7 @@ LispObject *lisp_x_call_user_input_transform_hook(const char *text)
     if (!result || LISP_TYPE(result) == LISP_ERROR) {
         char *err_str = lisp_print(result);
         if (err_str) {
-            bloom_log(LOG_ERROR, "hooks", "user-input-transform-hook: %s", err_str);
+            mudlark_log(LOG_ERROR, "hooks", "user-input-transform-hook: %s", err_str);
         }
         if (text && text[0] == '#') {
             return lisp_make_string("");
@@ -1996,7 +1996,7 @@ void lisp_x_load_init(void)
     /* Create the default session now that echo_callback is available */
     Session *s = session_create("default");
     if (!s) {
-        bloom_log(LOG_ERROR, "lisp", "Failed to create default session");
+        mudlark_log(LOG_ERROR, "lisp", "Failed to create default session");
         return;
     }
     session_set_current(s);
@@ -2085,7 +2085,7 @@ char **lisp_x_complete_prefix(const char *prefix)
 {
     Environment *env = get_current_env();
     if (!env || !prefix) {
-        bloom_log(LOG_DEBUG, "completion", "no env or prefix");
+        mudlark_log(LOG_DEBUG, "completion", "no env or prefix");
         return NULL;
     }
 
@@ -2093,11 +2093,11 @@ char **lisp_x_complete_prefix(const char *prefix)
     LispObject *hook =
         env_lookup(env, LISP_SYM_VAL(lisp_intern("completion-hook")));
     if (!lisp_is_callable(hook)) {
-        bloom_log(LOG_DEBUG, "completion", "hook not found or wrong type");
+        mudlark_log(LOG_DEBUG, "completion", "hook not found or wrong type");
         return NULL;
     }
 
-    bloom_log(LOG_DEBUG, "completion", "prefix=\"%s\"", prefix);
+    mudlark_log(LOG_DEBUG, "completion", "prefix=\"%s\"", prefix);
 
     /* Call hook with prefix text */
     volatile LispObject *arg = lisp_make_string(prefix);
@@ -2107,11 +2107,11 @@ char **lisp_x_complete_prefix(const char *prefix)
 
     if (!result || LISP_TYPE(result) == LISP_ERROR || result == NIL) {
         if (!result)
-            bloom_log(LOG_DEBUG, "completion", "eval returned NULL");
+            mudlark_log(LOG_DEBUG, "completion", "eval returned NULL");
         else if (LISP_TYPE(result) == LISP_ERROR)
-            bloom_log(LOG_DEBUG, "completion", "eval error: %s", lisp_print(result));
+            mudlark_log(LOG_DEBUG, "completion", "eval error: %s", lisp_print(result));
         else
-            bloom_log(LOG_DEBUG, "completion", "eval returned NIL");
+            mudlark_log(LOG_DEBUG, "completion", "eval returned NIL");
         return NULL;
     }
 
@@ -2124,11 +2124,11 @@ char **lisp_x_complete_prefix(const char *prefix)
     }
 
     if (count == 0) {
-        bloom_log(LOG_DEBUG, "completion", "result list empty");
+        mudlark_log(LOG_DEBUG, "completion", "result list empty");
         return NULL;
     }
 
-    bloom_log(LOG_DEBUG, "completion", "%d candidates", count);
+    mudlark_log(LOG_DEBUG, "completion", "%d candidates", count);
 
     /* Lazily create the reusable arena */
     if (!completion_arena) {

@@ -373,7 +373,7 @@ class TestServer:
 {CYAN} |____/|_|\\___/ \\___/|_| |_| |_|{MAGENTA}  |_|\\___||___/\\__|{RESET}
 {gradient}
 
-{GREEN}{BOLD}  \u2728 Welcome to the Bloom Test Server! \u2728{RESET}
+{GREEN}{BOLD}  \u2728 Welcome to the Mudlark Test Server! \u2728{RESET}
 {DIM}  {"\u2500" * (width - 4)}{RESET}
 {WHITE}{ITALIC}  A test server for mudlark development.{RESET}
 {WHITE}  Unrecognized input is echoed back to you.{RESET}

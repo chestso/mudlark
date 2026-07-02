@@ -21,8 +21,8 @@ int session_manager_init(Environment *env)
     }
 
     if (!env) {
-        bloom_log(LOG_ERROR, "session",
-                  "NULL environment passed to session_manager_init");
+        mudlark_log(LOG_ERROR, "session",
+                    "NULL environment passed to session_manager_init");
         return -1;
     }
 
@@ -58,13 +58,13 @@ Environment *session_get_base_env(void) { return base_env; }
 Session *session_create(const char *name)
 {
     if (!base_env) {
-        bloom_log(LOG_ERROR, "session", "Session manager not initialized");
+        mudlark_log(LOG_ERROR, "session", "Session manager not initialized");
         return NULL;
     }
 
     if (session_count_val >= MAX_SESSIONS) {
-        bloom_log(LOG_ERROR, "session", "Maximum session count reached (%d)",
-                  MAX_SESSIONS);
+        mudlark_log(LOG_ERROR, "session", "Maximum session count reached (%d)",
+                    MAX_SESSIONS);
         return NULL;
     }
 
@@ -81,7 +81,7 @@ Session *session_create(const char *name)
 
     sessions[session_count_val++] = s;
 
-    bloom_log(LOG_INFO, "session", "Created session %d: \"%s\"", s->id, s->name);
+    mudlark_log(LOG_INFO, "session", "Created session %d: \"%s\"", s->id, s->name);
 
     return s;
 }
@@ -89,7 +89,7 @@ Session *session_create(const char *name)
 int session_destroy(int id)
 {
     if (current_session && current_session->id == id) {
-        bloom_log(LOG_ERROR, "session", "Cannot destroy current session %d", id);
+        mudlark_log(LOG_ERROR, "session", "Cannot destroy current session %d", id);
         return -1;
     }
 
@@ -100,8 +100,8 @@ int session_destroy(int id)
             if (s->telnet && s->connected) {
                 telnet_disconnect(s->telnet);
             }
-            bloom_log(LOG_INFO, "session", "Destroyed session %d: \"%s\"", s->id,
-                      s->name);
+            mudlark_log(LOG_INFO, "session", "Destroyed session %d: \"%s\"", s->id,
+                        s->name);
 
             /* Compact the array — GC handles memory deallocation */
             for (int j = i; j < session_count_val - 1; j++) {

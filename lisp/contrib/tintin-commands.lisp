@@ -259,7 +259,7 @@
         "")
       (progn (terminal-echo (concat "Action '" pattern "' not found\r\n")) ""))))
 
-;; Handle #color command (bloom extension, not in upstream TinTin++)
+;; Handle #color command (mudlark extension, not in upstream TinTin++)
 ;; args: (), (name), or (name spec)
 (defun tintin-handle-color (args)
   "Handle #color command (list, show, or create custom named colors)."
@@ -307,7 +307,7 @@
 
 ;; Handle #config command (matches upstream TinTin++ #config)
 ;; args: (), (setting), or (setting value)
-;; Supported settings: "speedwalk", "speedwalk diagonals" (bloom extension)
+;; Supported settings: "speedwalk", "speedwalk diagonals" (mudlark extension)
 (defun tintin-handle-config (args)
   "Handle #config command (list, show, or set configuration)."
   (cond

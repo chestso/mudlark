@@ -84,7 +84,7 @@
 
 (defun run-at-time (delay repeat func &rest args) nil)
 (defun cancel-timer (timer) nil)
-(defun bloom-log (level category message) nil)
+(defun mudlark-log (level category message) nil)
 (defun set-status (&optional text) nil)
 (defun status-mode-set (sym text prio) nil)
 (defun status-mode-remove (sym) nil)

@@ -27,7 +27,7 @@ if [ ! -x "$MUDLARK_BIN" ]; then
 	exit 77
 fi
 
-SESSION="bloom-shift-tab-$$"
+SESSION="mudlark-shift-tab-$$"
 SERVER_PID=
 
 cleanup() {
