@@ -232,15 +232,23 @@ static void print_version(void)
 /* --- Runtime event callbacks --- */
 
 /* Return the telnet socket FD for the runtime to poll (-1 if not connected) */
-static int get_telnet_fd(void *user_data)
+static size_t get_telnet_fds(TuiExternalFd *out, size_t cap, void *user_data)
 {
     (void)user_data;
-    return g_connected ? telnet_get_socket(g_telnet) : -1;
+    if (cap == 0)
+        return 0;
+    if (!g_connected)
+        return 0;
+    out[0].fd = telnet_get_socket(g_telnet);
+    out[0].flags = TUI_FD_READ;
+    return 1;
 }
 
 /* Called when the telnet socket has data ready */
-static void on_telnet_ready(void *user_data)
+static void on_telnet_ready(int fd, unsigned ready, void *user_data)
 {
+    (void)fd;
+    (void)ready;
     (void)user_data;
     char recv_buffer[4096];
     handle_telnet_data(recv_buffer, sizeof(recv_buffer));
@@ -606,7 +614,7 @@ int main(int argc, char *argv[])
         .output = stdout,
         .cmd_handler = handle_app_cmd,
         .cmd_handler_data = NULL,
-        .get_external_fd = get_telnet_fd,
+        .fill_external_fds = get_telnet_fds,
         .on_external_ready = on_telnet_ready,
         .on_tick = on_tick,
         .get_tick_timeout_ms = get_tick_timeout_ms,
