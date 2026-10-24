@@ -1,5 +1,7 @@
 # mudlark
 
+**Homepage:** <https://chest.so/mudlark/>
+
 A terminal-based telnet client with Lisp scripting support, designed for MUD gaming.
 
 ## Features
