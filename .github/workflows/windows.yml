@@ -68,6 +68,9 @@ jobs:
             mingw-w64-${{ matrix.arch }}-pcre2
             ncurses zip p7zip
 
+      # Dependencies are built and installed, not tested: ditty and boba run
+      # their own suites in their own pipelines, and re-running them here only
+      # spends the Windows job's minutes.
       - name: Build & install boba
         working-directory: boba
         run: |
@@ -75,7 +78,6 @@ jobs:
           mkdir build && cd build
           sh ../configure --prefix="$MINGW_PREFIX"
           make -j"$(nproc)"
-          make check
           make install
 
       - name: Build & install ditty
@@ -85,7 +87,6 @@ jobs:
           mkdir build && cd build
           sh ../configure --prefix="$MINGW_PREFIX"
           make -j"$(nproc)"
-          make check
           make install
 
       - name: Build mudlark
