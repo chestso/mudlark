@@ -68,45 +68,50 @@ jobs:
             mingw-w64-${{ matrix.arch }}-pcre2
             ncurses zip p7zip
 
-      # Dependencies are built and installed, not tested: ditty and boba run
-      # their own suites in their own pipelines, and re-running them here only
-      # spends the Windows job's minutes.
-      - name: Build & install boba
+      # Build policy: what ships is a release build, what gets tested keeps the
+      # sanitizer mode (plain configure). Dependencies are built and installed,
+      # not tested — ditty and boba run their own suites in their own
+      # pipelines, and re-running them here only spends the Windows job's
+      # minutes. MinGW ships no libasan/libubsan, so the Windows test build
+      # degrades to an unsanitized debug build (see configure.ac).
+      - name: Build & install boba (release)
         working-directory: boba
         run: |
           ./autogen.sh
           mkdir build && cd build
-          sh ../configure --prefix="$MINGW_PREFIX"
+          sh ../configure --prefix="$MINGW_PREFIX" --enable-release
           make -j"$(nproc)"
           make install
 
-      - name: Build & install ditty
+      - name: Build & install ditty (release)
         working-directory: ditty
         run: |
           ./autogen.sh
           mkdir build && cd build
-          sh ../configure --prefix="$MINGW_PREFIX"
+          sh ../configure --prefix="$MINGW_PREFIX" --enable-release
           make -j"$(nproc)"
           make install
 
-      - name: Build mudlark
+      - name: Build mudlark (sanitizers, for the tests)
         run: |
           ./autogen.sh
           mkdir build && cd build
-          if [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
-            sh ../configure --enable-release
-          else
-            sh ../configure
-          fi
+          sh ../configure
           make -j"$(nproc)"
 
       - name: Run tests
         run: make -C build check
 
+      - name: Build mudlark (release, for the ZIP)
+        run: |
+          mkdir build-release && cd build-release
+          sh ../configure --enable-release
+          make -j"$(nproc)"
+
       - name: Build portable ZIP
         run: |
           cd "$GITHUB_WORKSPACE"
-          make -C build dist-portable
+          make -C build-release dist-portable
           ls -la mudlark-*-windows-*.zip
 
       - name: Upload build artifact
