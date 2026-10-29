@@ -1,7 +1,13 @@
 # tests/Makefile.am - Test files
 
 # C tests
-check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum
+check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum test_terminal_caps
+
+test_terminal_caps_SOURCES = test_terminal_caps.c
+test_terminal_caps_CPPFLAGS = \
+    -I$(top_srcdir)/include
+test_terminal_caps_LDADD = \
+    $(top_builddir)/src/mudlark-terminal_caps.o
 
 test_telnet_app_SOURCES = test_telnet_app.c
 test_telnet_app_CPPFLAGS = \
@@ -66,6 +72,7 @@ TESTS = \
     test_event_loop \
     test_add_hook_fixnum \
     test_telnet_connect_fixnum \
+    test_terminal_caps \
     hooks.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \

@@ -11,7 +11,9 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 - Lisp scripting via ditty integration
 - TinTin++ compatible MUD scripting (`#alias`, `#action`, `#highlight`, `#var`, `#color`)
 - Multi-session support with per-session hook registries and telnet connections
-- ANSI color support with truecolor detection
+- ANSI color support with truecolor detection — UI colors are the
+  [Dracula](https://draculatheme.com/spec) palette, degraded to the nearest
+  256-color index or ANSI slot when the terminal can't show 24-bit color
 - Statusbar with mode display and notifications
 - F-key bindings (F1–F12) configurable from Lisp
 - Speedwalk shorthand (e.g., `3n2e` expands to `n;n;n;e;e`)

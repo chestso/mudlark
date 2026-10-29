@@ -492,10 +492,42 @@ int termcaps_rgb_to_256(int r, int g, int b)
     return 16 + 36 * ri + 6 * gi + bi;
 }
 
-/* Convert RGB to 8-color ANSI index */
-int termcaps_rgb_to_8(int r, int g, int b)
+/* The 16 ANSI slots as the Dracula specification defines them
+ * (https://draculatheme.com/spec, "ANSI" table).
+ *
+ * This is the reference palette for degrading a color to a terminal that
+ * cannot show it: the terminal's own palette wins, but a slot keeps the hue
+ * its name promises (slot 6 is cyan on every 16-color terminal), so matching
+ * a Dracula color to its nearest slot lands on the user's equivalent color
+ * rather than on a guess. */
+static const unsigned char dracula_ansi16[16][3] = {
+    { 0x21, 0x22, 0x2C }, /* 0  black                        */
+    { 0xFF, 0x55, 0x55 }, /* 1  red                          */
+    { 0x50, 0xFA, 0x7B }, /* 2  green                        */
+    { 0xF1, 0xFA, 0x8C }, /* 3  yellow                       */
+    { 0xBD, 0x93, 0xF9 }, /* 4  blue                         */
+    { 0xFF, 0x79, 0xC6 }, /* 5  magenta                      */
+    { 0x8B, 0xE9, 0xFD }, /* 6  cyan                         */
+    { 0xF8, 0xF8, 0xF2 }, /* 7  white                        */
+    { 0x62, 0x72, 0xA4 }, /* 8  bright black  (comment)      */
+    { 0xFF, 0x6E, 0x6E }, /* 9  bright red                   */
+    { 0x69, 0xFF, 0x94 }, /* 10 bright green                 */
+    { 0xFF, 0xFF, 0xA5 }, /* 11 bright yellow                */
+    { 0xD6, 0xAC, 0xFF }, /* 12 bright blue                  */
+    { 0xFF, 0x92, 0xDF }, /* 13 bright magenta               */
+    { 0xA4, 0xFF, 0xFF }, /* 14 bright cyan                  */
+    { 0xFF, 0xFF, 0xFF }, /* 15 bright white                 */
+};
+
+/* Nearest slot of dracula_ansi16, searched over `count` slots.
+ *
+ * Distance is the "redmean" approximation of perceptual difference
+ * (https://en.wikipedia.org/wiki/Color_difference#sRGB), which weights the
+ * channels unevenly the way the eye does.  Plain Euclidean RGB distance puts
+ * Dracula's orange between yellow and bright red almost exactly; the weighted
+ * form lands it on yellow, which is the hue a reader would name. */
+static int rgb_to_ansi_slot(int r, int g, int b, int count)
 {
-    /* Clamp values */
     if (r < 0)
         r = 0;
     if (r > 255)
@@ -509,17 +541,34 @@ int termcaps_rgb_to_8(int r, int g, int b)
     if (b > 255)
         b = 255;
 
-    /* Simple threshold mapping:
-     * 0 = black, 1 = red, 2 = green, 3 = yellow
-     * 4 = blue, 5 = magenta, 6 = cyan, 7 = white
-     */
-    int threshold = 128;
-    int rb = (r >= threshold) ? 1 : 0;
-    int gb = (g >= threshold) ? 1 : 0;
-    int bb = (b >= threshold) ? 1 : 0;
+    int best = 0;
+    long best_dist = -1;
+    for (int i = 0; i < count; i++) {
+        long dr = r - dracula_ansi16[i][0];
+        long dg = g - dracula_ansi16[i][1];
+        long db = b - dracula_ansi16[i][2];
+        long rmean = (r + dracula_ansi16[i][0]) / 2;
+        /* Scaled by 256 to stay in integers: 2+w, 4, 2-w with w = rmean/256 */
+        long wr = 512 + rmean;
+        long wg = 1024;
+        long wb = 512 + 255 - rmean;
+        long dist = wr * dr * dr + wg * dg * dg + wb * db * db;
+        if (best_dist < 0 || dist < best_dist) {
+            best_dist = dist;
+            best = i;
+        }
+    }
+    return best;
+}
 
-    /* ANSI color index = 4*blue + 2*green + 1*red */
-    return rb + 2 * gb + 4 * bb;
+int termcaps_rgb_to_16(int r, int g, int b)
+{
+    return rgb_to_ansi_slot(r, g, b, 16);
+}
+
+int termcaps_rgb_to_8(int r, int g, int b)
+{
+    return rgb_to_ansi_slot(r, g, b, 8);
 }
 
 /* Format foreground color escape sequence */
@@ -544,16 +593,22 @@ const char *termcaps_format_fg_color(int r, int g, int b)
     }
 
     case TERM_COLOR_16:
+    {
+        int idx = termcaps_rgb_to_16(r, g, b);
+        if (idx < 8) {
+            snprintf(g_fg_color_buf, sizeof(g_fg_color_buf), "\033[%dm",
+                     30 + idx);
+        } else {
+            snprintf(g_fg_color_buf, sizeof(g_fg_color_buf), "\033[%dm",
+                     90 + (idx - 8));
+        }
+        break;
+    }
+
     case TERM_COLOR_8:
     {
         int idx = termcaps_rgb_to_8(r, g, b);
-        /* For 16-color, use bright variants for lighter colors */
-        if (g_caps.color_level == TERM_COLOR_16 &&
-            (r > 200 || g > 200 || b > 200)) {
-            snprintf(g_fg_color_buf, sizeof(g_fg_color_buf), "\033[%dm", 90 + idx);
-        } else {
-            snprintf(g_fg_color_buf, sizeof(g_fg_color_buf), "\033[%dm", 30 + idx);
-        }
+        snprintf(g_fg_color_buf, sizeof(g_fg_color_buf), "\033[%dm", 30 + idx);
         break;
     }
 
@@ -587,15 +642,22 @@ const char *termcaps_format_bg_color(int r, int g, int b)
     }
 
     case TERM_COLOR_16:
+    {
+        int idx = termcaps_rgb_to_16(r, g, b);
+        if (idx < 8) {
+            snprintf(g_bg_color_buf, sizeof(g_bg_color_buf), "\033[%dm",
+                     40 + idx);
+        } else {
+            snprintf(g_bg_color_buf, sizeof(g_bg_color_buf), "\033[%dm",
+                     100 + (idx - 8));
+        }
+        break;
+    }
+
     case TERM_COLOR_8:
     {
         int idx = termcaps_rgb_to_8(r, g, b);
-        if (g_caps.color_level == TERM_COLOR_16 &&
-            (r > 200 || g > 200 || b > 200)) {
-            snprintf(g_bg_color_buf, sizeof(g_bg_color_buf), "\033[%dm", 100 + idx);
-        } else {
-            snprintf(g_bg_color_buf, sizeof(g_bg_color_buf), "\033[%dm", 40 + idx);
-        }
+        snprintf(g_bg_color_buf, sizeof(g_bg_color_buf), "\033[%dm", 40 + idx);
         break;
     }
 

@@ -25,10 +25,41 @@
 #include <boba/msg.h>
 #include <boba/runtime.h>
 
+#include "../include/terminal_caps.h"
 #include "../src/telnet_app.h"
 
 /* Stub for lisp_x_call_fkey_hook (linked from telnet_app.o) */
 void lisp_x_call_fkey_hook(int fkey_num) { (void)fkey_num; }
+
+/* Stubs for terminal_caps (linked from telnet_app.o). The color level is
+ * settable so the tier pick in telnet_app_set_border_color() is testable. */
+static int g_test_color_level = 4;
+
+int termcaps_get_color_level(void) { return g_test_color_level; }
+
+int termcaps_rgb_to_256(int r, int g, int b)
+{
+    (void)r;
+    (void)g;
+    (void)b;
+    return 231;
+}
+
+int termcaps_rgb_to_16(int r, int g, int b)
+{
+    (void)r;
+    (void)g;
+    (void)b;
+    return 6;
+}
+
+int termcaps_rgb_to_8(int r, int g, int b)
+{
+    (void)r;
+    (void)g;
+    (void)b;
+    return 2;
+}
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -409,6 +440,44 @@ static void test_runtime_sends_window_size(void)
     fclose(devnull);
 }
 
+/* ========================================================================
+ * Border color tier tests
+ * ======================================================================== */
+
+/* The divider color must be handed to boba in the form the terminal can
+ * render: 24-bit only on a truecolor terminal, a palette index below that. */
+static void test_border_color_uses_terminal_tier(void)
+{
+    TelnetAppModel *app = create_test_app();
+    assert(app != NULL);
+
+    g_test_color_level = TERM_COLOR_TRUECOLOR;
+    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
+    assert(app->border_style.fg.type == TUI_COLOR_RGB);
+
+    g_test_color_level = TERM_COLOR_256;
+    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
+    assert(app->border_style.fg.type == TUI_COLOR_ANSI256);
+    assert(app->border_style.fg.v.ansi == 231);
+
+    g_test_color_level = TERM_COLOR_16;
+    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
+    assert(app->border_style.fg.type == TUI_COLOR_ANSI16);
+    assert(app->border_style.fg.v.ansi == 6);
+
+    g_test_color_level = TERM_COLOR_8;
+    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
+    assert(app->border_style.fg.type == TUI_COLOR_ANSI16);
+    assert(app->border_style.fg.v.ansi == 2);
+
+    g_test_color_level = TERM_COLOR_NONE;
+    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
+    assert(app->border_style.fg.type == TUI_COLOR_NONE);
+
+    g_test_color_level = TERM_COLOR_TRUECOLOR;
+    test_app_free(app);
+}
+
 /* ======================================================================== */
 
 int main(void)
@@ -423,6 +492,9 @@ int main(void)
     /* WINDOW_SIZE tests */
     RUN_TEST(test_window_size_updates_dimensions);
     RUN_TEST(test_window_size_small);
+
+    /* Border color tier tests */
+    RUN_TEST(test_border_color_uses_terminal_tier);
 
     /* Mouse scroll tests */
     RUN_TEST(test_mouse_wheel_up_scrolls);

@@ -26,7 +26,7 @@
 ;;; Commentary:
 
 ;; Provides syntax highlighting and basic editing support for TinTin++
-;; MUD client script files (.tin).  Colors inspired by Charm.land.
+;; MUD client script files (.tin).  Faces use the Dracula palette.
 
 ;;; Code:
 
@@ -47,79 +47,130 @@
   :group 'tintin)
 
 ;; ============================================================================
-;; Faces (Charm.land palette)
+;; Faces (Dracula palette)
 ;; ============================================================================
+;; Colors are the Dracula specification's
+;; (https://draculatheme.com/spec), with its light counterpart Alucard for
+;; light-background frames.  Faces set :foreground only, never :background, so
+;; the mode draws on whatever background the frame already has (transparent
+;; included); the spec's #282A36 background is deliberately unused.
+;;
+;; Color depth is left to Emacs, which sends what the frame can show: 24-bit
+;; SGR for these hexes on a truecolor frame, the nearest cube entry on a
+;; 256-color one.  Below 256 colors the dark/light branches don't match and
+;; the faces inherit the standard font-lock faces, whose colors come from the
+;; frame's own palette.
+;;
+;; One deliberate departure from the spec: it leaves variables at the
+;; foreground color, which would make them indistinguishable from the literal
+;; text that dominates a TinTin++ script.  Variables take Orange, the spec's
+;; color for interpolated parameters, so `$hp` stays visible.
+
+(defconst tintin-palette-dark
+  '((foreground . "#F8F8F2")
+    (comment . "#6272A4")
+    (cyan . "#8BE9FD")
+    (green . "#50FA7B")
+    (orange . "#FFB86C")
+    (pink . "#FF79C6")
+    (purple . "#BD93F9")
+    (red . "#FF5555")
+    (yellow . "#F1FA8C"))
+  "Dracula (dark) colors used by `tintin-mode' faces.")
+
+(defconst tintin-palette-light
+  '((foreground . "#1F1F1F")
+    (comment . "#6C664B")
+    (cyan . "#036A96")
+    (green . "#14710A")
+    (orange . "#A34D14")
+    (pink . "#A3144D")
+    (purple . "#644AC9")
+    (red . "#CB3A2A")
+    (yellow . "#846E15"))
+  "Alucard (light) colors used by `tintin-mode' faces.")
+
+(defun tintin-color (name &optional palette)
+  "Return the hex string for palette color NAME in PALETTE.
+PALETTE defaults to `tintin-palette-dark'; pass `tintin-palette-light' for
+light-background frames."
+  (let ((entry (assq name (or palette tintin-palette-dark))))
+    (if entry
+        (cdr entry)
+      (error "Unknown tintin palette color: %s" name))))
 
 (defface tintin-command-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#00AAFF"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'cyan)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#0066BB"))
-    (t (:inherit font-lock-keyword-face)))
+     (:foreground ,(tintin-color 'cyan tintin-palette-light)))
+    (t (:inherit font-lock-builtin-face)))
   "Face for TinTin++ commands."
   :group 'tintin)
 
 (defface tintin-control-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#FF5FD2"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'pink)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#CC00AA"))
-    (t (:inherit font-lock-builtin-face)))
+     (:foreground ,(tintin-color 'pink tintin-palette-light)))
+    (t (:inherit font-lock-keyword-face)))
   "Face for TinTin++ control flow."
   :group 'tintin)
 
 (defface tintin-function-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#00D787"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'green)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#009960"))
+     (:foreground ,(tintin-color 'green tintin-palette-light)))
     (t (:inherit font-lock-function-name-face)))
   "Face for TinTin++ functions and class definitions."
   :group 'tintin)
 
 (defface tintin-variable-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#FF875F"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'orange)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#CC5500"))
+     (:foreground ,(tintin-color 'orange tintin-palette-light)))
     (t (:inherit font-lock-variable-name-face)))
   "Face for TinTin++ variables."
   :group 'tintin)
 
 (defface tintin-string-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#B083EA"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'yellow)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#7049C2"))
+     (:foreground ,(tintin-color 'yellow tintin-palette-light)))
     (t (:inherit font-lock-string-face)))
   "Face for TinTin++ string-like constructs."
   :group 'tintin)
 
 (defface tintin-number-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#6EEFC0"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'purple)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#008866"))
+     (:foreground ,(tintin-color 'purple tintin-palette-light)))
     (t (:inherit font-lock-constant-face)))
   "Face for numeric literals."
   :group 'tintin)
 
 (defface tintin-comment-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#6C6C6C"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'comment)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#8C8C8C"))
+     (:foreground ,(tintin-color 'comment tintin-palette-light)))
     (t (:inherit font-lock-comment-face)))
   "Face for TinTin++ comments."
   :group 'tintin)
 
 (defface tintin-special-face
-  '((((class color) (min-colors 256) (background dark))
-     (:foreground "#FFFF87"))
+  `((((class color) (min-colors 256) (background dark))
+     (:foreground ,(tintin-color 'foreground)))
     (((class color) (min-colors 256) (background light))
-     (:foreground "#887700"))
+     (:foreground ,(tintin-color 'foreground tintin-palette-light)))
     (t (:inherit font-lock-preprocessor-face)))
-  "Face for special TinTin++ syntax."
+  "Face for special TinTin++ syntax: escapes, `;' and braces.
+The spec colors brackets and braces as the foreground, so this face does
+too, keeping structural punctuation quiet against the colored tokens."
   :group 'tintin)
 
 ;; ============================================================================

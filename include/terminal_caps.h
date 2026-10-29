@@ -89,8 +89,18 @@ const char *termcaps_get_encoding(void);
  */
 int termcaps_rgb_to_256(int r, int g, int b);
 
+/* Convert 24-bit RGB to the closest of the 16 ANSI slots (0-15).
+ * Matching is by nearest color against the Dracula ANSI palette, which
+ * names the slots the way the rest of the UI uses them (slot 6 is cyan,
+ * slot 4 is blue), so a Dracula color degrades to the slot that carries
+ * its hue in the terminal's own palette.  Slots 0-7 are the base colors,
+ * 8-15 the bright variants.
+ */
+int termcaps_rgb_to_16(int r, int g, int b);
+
 /* Convert 24-bit RGB to closest 8-color ANSI index (0-7).
- * Maps to: black, red, green, yellow, blue, magenta, cyan, white
+ * Same matching as termcaps_rgb_to_16, restricted to the base slots:
+ * black, red, green, yellow, blue, magenta, cyan, white.
  */
 int termcaps_rgb_to_8(int r, int g, int b);
 
@@ -106,14 +116,14 @@ int termcaps_rgb_to_8(int r, int g, int b);
  * For foreground colors:
  *   - Truecolor: \033[38;2;R;G;Bm
  *   - 256-color: \033[38;5;Nm
- *   - 16-color:  \033[3N;1m or \033[3Nm
+ *   - 16-color:  \033[3Nm (base slot) or \033[9Nm (bright slot)
  *   - 8-color:   \033[3Nm
  *   - No color:  empty string
  *
  * For background colors:
  *   - Truecolor: \033[48;2;R;G;Bm
  *   - 256-color: \033[48;5;Nm
- *   - 16-color:  \033[4N;1m or \033[4Nm
+ *   - 16-color:  \033[4Nm (base slot) or \033[10Nm (bright slot)
  *   - 8-color:   \033[4Nm
  *   - No color:  empty string
  */

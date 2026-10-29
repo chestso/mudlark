@@ -72,42 +72,52 @@
 ;; ============================================================================
 ;; COLOR CONFIGURATION
 ;; ============================================================================
-;; UI colors — each is an (R G B) list. Override in your config to customize.
-(defvar *color-user-input* '(255 215 0)
-  "Color for echoed user input. RGB list.")
+;; Palette: Dracula (https://draculatheme.com/spec). Each color is an
+;; (R G B) list; override in your config to customize.
+;;
+;; `termcap` chooses the form the terminal can actually show: 24-bit RGB on a
+;; truecolor terminal, the nearest 256-color index on a 256-color one, and the
+;; nearest ANSI slot on a 16- or 8-color one. So the exact Dracula colors below
+;; are used only where the terminal can render them.
+;;
+;; No background is ever painted. Dracula's own #282A36 background is
+;; deliberately unused: the terminal's background (transparent or otherwise)
+;; always shows through.
+(defvar *color-user-input* '(139 233 253)
+  "Color for echoed user input. RGB list. Dracula Cyan.")
 
-(defvar *color-divider-connected* '(37 160 101)
-  "Divider color when connected. RGB list.")
+(defvar *color-divider-connected* '(80 250 123)
+  "Divider color when connected. RGB list. Dracula Green.")
 
-(defvar *color-divider-disconnected* '(88 88 88)
-  "Divider color when disconnected. RGB list.")
+(defvar *color-divider-disconnected* '(98 114 164)
+  "Divider color when disconnected. RGB list. Dracula Comment.")
 
-(defvar *color-log-debug* '(128 128 128)
-  "Color for debug log messages. RGB list.")
+(defvar *color-log-debug* '(98 114 164)
+  "Color for debug log messages. RGB list. Dracula Comment.")
 
-(defvar *color-log-info* '(128 128 128)
-  "Color for info log messages. RGB list.")
+(defvar *color-log-info* '(139 233 253)
+  "Color for info log messages. RGB list. Dracula Cyan.")
 
-(defvar *color-log-warn* '(255 200 0)
-  "Color for warning log messages. RGB list.")
+(defvar *color-log-warn* '(241 250 140)
+  "Color for warning log messages. RGB list. Dracula Yellow.")
 
-(defvar *color-log-error* '(255 80 80)
-  "Color for error log messages. RGB list.")
+(defvar *color-log-error* '(255 85 85)
+  "Color for error log messages. RGB list. Dracula Red.")
 
-(defvar *color-script-header* '(255 177 182)
-  "Color for script-echo header text. RGB list.")
+(defvar *color-script-header* '(255 121 198)
+  "Color for script-echo header text. RGB list. Dracula Pink.")
 
-(defvar *color-script-desc* '(157 225 241)
-  "Color for script-echo description text. RGB list.")
+(defvar *color-script-desc* '(139 233 253)
+  "Color for script-echo description text. RGB list. Dracula Cyan.")
 
 (defvar *color-script-section* '(189 147 249)
-  "Color for script-echo section titles. RGB list.")
+  "Color for script-echo section titles. RGB list. Dracula Purple.")
 
-(defvar *color-script-detail* '(100 100 156)
-  "Color for script-echo detail text. RGB list.")
+(defvar *color-script-detail* '(98 114 164)
+  "Color for script-echo detail text. RGB list. Dracula Comment.")
 
-(defvar *color-script-mdash* '(98 98 98)
-  "Color for script-echo mdash separator. RGB list.")
+(defvar *color-script-mdash* '(98 114 164)
+  "Color for script-echo mdash separator. RGB list. Dracula Comment.")
 
 (defun color->fg (rgb)
   "Convert an RGB list to a foreground ANSI escape sequence."
@@ -511,7 +521,7 @@ Example — send a command every 10 seconds:
 ;; ============================================================================
 ;; SCRIPT STARTUP BANNERS
 ;; ============================================================================
-;; Bubbletea-inspired soft pastel color palette
+;; Banner colors come from the Dracula palette in COLOR CONFIGURATION above.
 (defun script-echo (title &rest args)
   "Print a styled script startup banner with optional description and sections.
 
@@ -525,7 +535,7 @@ Usage:
     :section \"Usage\\ncmd1\\ncmd2\"
     :section \"Features\\nfeature1\\nfeature2\")
 
-Colors: header=pale pink, desc=pale cyan, section=lavender, details=slate blue"
+Colors: header=pink, desc=cyan, section=purple, details=comment"
   (let ((c-header (color->fg *color-script-header*))
         (c-desc (color->fg *color-script-desc*))
         (c-section (color->fg *color-script-section*))

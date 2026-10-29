@@ -416,6 +416,55 @@
     (should (eq (char-syntax ?}) ?\)))))
 
 ;; ============================================================================
+;; Faces (Dracula palette)
+;; ============================================================================
+
+(defun tintin-test-face-fg (face &optional mode)
+  "Return FACE's :foreground for MODE (`dark' or `light') in its face spec."
+  (let ((mode (or mode 'dark))
+        found)
+    (dolist (entry (get face 'face-defface-spec) found)
+      (let* ((display (car entry))
+             (bg (and (consp display) (assq 'background display))))
+        (when (and (not found) bg (eq (cadr bg) mode))
+          (setq found (plist-get (cadr entry) :foreground)))))))
+
+(ert-deftest tintin-test-palette-colors ()
+  "Palette lookups return the Dracula and Alucard hex values."
+  (should (equal (tintin-color 'cyan) "#8BE9FD"))
+  (should (equal (tintin-color 'purple) "#BD93F9"))
+  (should (equal (tintin-color 'comment) "#6272A4"))
+  (should (equal (tintin-color 'cyan tintin-palette-light) "#036A96"))
+  (should (equal (tintin-color 'purple tintin-palette-light) "#644AC9")))
+
+(ert-deftest tintin-test-palette-unknown-color ()
+  "Asking for a color outside the palette is an error."
+  (should-error (tintin-color 'chartreuse)))
+
+(ert-deftest tintin-test-faces-use-palette ()
+  "Each face's dark and light foregrounds come from the palette."
+  (dolist (pair '((tintin-command-face . cyan)
+                  (tintin-control-face . pink)
+                  (tintin-function-face . green)
+                  (tintin-variable-face . orange)
+                  (tintin-string-face . yellow)
+                  (tintin-number-face . purple)
+                  (tintin-comment-face . comment)
+                  (tintin-special-face . foreground)))
+    (should (equal (tintin-test-face-fg (car pair)) (tintin-color (cdr pair))))
+    (should (equal (tintin-test-face-fg (car pair) 'light)
+                   (tintin-color (cdr pair) tintin-palette-light)))))
+
+(ert-deftest tintin-test-faces-foreground-only ()
+  "No face sets a background: the frame's own (possibly transparent) one stays."
+  (dolist (face '(tintin-command-face tintin-control-face tintin-function-face
+                  tintin-variable-face tintin-string-face tintin-number-face
+                  tintin-comment-face tintin-special-face))
+    (dolist (entry (get face 'face-defface-spec))
+      (when (consp (car entry))
+        (should-not (plist-member (cadr entry) :background))))))
+
+;; ============================================================================
 ;; Indentation
 ;; ============================================================================
 

@@ -9,6 +9,7 @@
 
 #include "telnet_app.h"
 #include "lisp_extension.h"
+#include "terminal_caps.h"
 #include <boba/ansi_sequences.h>
 #include <boba/cmd.h>
 #include <stdio.h>
@@ -347,6 +348,29 @@ void telnet_app_set_prompt(TelnetAppModel *app, const char *prompt)
     }
 }
 
+/* Pick the TuiColor form the terminal can actually render.
+ *
+ * boba emits whatever TuiColor says: a 24-bit sequence for TUI_COLOR_RGB, a
+ * palette index for TUI_COLOR_ANSI256/ANSI16. So the app has to choose, per
+ * terminal, and 24-bit is only safe on a truecolor terminal. Below that the
+ * color degrades to the nearest palette entry — see termcaps_rgb_to_16/256.
+ */
+static TuiColor telnet_app_tier_color(uint8_t r, uint8_t g, uint8_t b)
+{
+    switch (termcaps_get_color_level()) {
+    case TERM_COLOR_TRUECOLOR:
+        return tui_color_rgb(r, g, b);
+    case TERM_COLOR_256:
+        return tui_color_ansi(termcaps_rgb_to_256(r, g, b));
+    case TERM_COLOR_16:
+        return tui_color_ansi(termcaps_rgb_to_16(r, g, b));
+    case TERM_COLOR_8:
+        return tui_color_ansi(termcaps_rgb_to_8(r, g, b));
+    default:
+        return tui_color_none();
+    }
+}
+
 /* Set the foreground color of the top + bottom border lines. */
 void telnet_app_set_border_color(TelnetAppModel *app, uint8_t r, uint8_t g,
                                  uint8_t b)
@@ -354,7 +378,7 @@ void telnet_app_set_border_color(TelnetAppModel *app, uint8_t r, uint8_t g,
     if (!app)
         return;
     app->border_style = tui_style_foreground(tui_style_new(),
-                                             tui_color_rgb(r, g, b));
+                                             telnet_app_tier_color(r, g, b));
 }
 
 /* Set the window title. The next view() will surface it via

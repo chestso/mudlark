@@ -1,5 +1,6 @@
 ;; tests/script-echo.lisp - Tests for script-echo styled banners
 ;; This test loads the actual init.lisp to test the real implementation.
+;; Expected colors are the Dracula palette defined in init.lisp.
 (load "tests/test-helpers.lisp")
 
 ;; ============================================================================
@@ -47,7 +48,7 @@
 ;; ============================================================================
 (reset-output)
 (script-echo "My Script")
-(assert-true (contains? (get-output) "[fg:255,177,182]My Script[reset]")
+(assert-true (contains? (get-output) "[fg:255,121,198]My Script[reset]")
   "Simple title shows header color")
 (assert-true (contains? (get-output) "\r\n")
   "Output ends with newline")
@@ -58,11 +59,11 @@
 (reset-output)
 (script-echo "My Script" :desc "a short description")
 (let ((out (get-output)))
-  (assert-true (contains? out "[fg:255,177,182]My Script[reset]")
+  (assert-true (contains? out "[fg:255,121,198]My Script[reset]")
     "Title with desc shows header")
-  (assert-true (contains? out "[fg:98,98,98] — [reset]")
-    "Mdash has gray color")
-  (assert-true (contains? out "[fg:157,225,241]a short description[reset]")
+  (assert-true (contains? out "[fg:98,114,164] — [reset]")
+    "Mdash has comment color")
+  (assert-true (contains? out "[fg:139,233,253]a short description[reset]")
     "Description has cyan color"))
 
 ;; ============================================================================
@@ -73,11 +74,11 @@
   :section "Usage\ncommand1\ncommand2")
 (let ((out (get-output)))
   (assert-true (contains? out "[fg:189,147,249]Usage[reset]")
-    "Section title has lavender color")
-  (assert-true (contains? out "[fg:100,100,156]command1[reset]")
-    "Detail 1 has slate blue color")
-  (assert-true (contains? out "[fg:100,100,156]command2[reset]")
-    "Detail 2 has slate blue color"))
+    "Section title has purple color")
+  (assert-true (contains? out "[fg:98,114,164]command1[reset]")
+    "Detail 1 has comment color")
+  (assert-true (contains? out "[fg:98,114,164]command2[reset]")
+    "Detail 2 has comment color"))
 
 ;; ============================================================================
 ;; Test: Multiple sections
@@ -103,7 +104,7 @@
 (reset-output)
 (script-echo "TinTin++ active")
 (let ((out (get-output)))
-  (assert-true (contains? out "[fg:255,177,182]TinTin++ active[reset]")
+  (assert-true (contains? out "[fg:255,121,198]TinTin++ active[reset]")
     "Simple title renders"))
 
 ;; ============================================================================
@@ -112,7 +113,7 @@
 (reset-output)
 (script-echo "App" :section "Single item section")
 (let ((out (get-output)))
-  (assert-true (contains? out "[fg:100,100,156]Single item section[reset]")
+  (assert-true (contains? out "[fg:98,114,164]Single item section[reset]")
     "Single-line section renders as detail"))
 
 ;; ============================================================================
@@ -135,7 +136,7 @@
 (let ((out (get-output)))
   (assert-true (contains? out "  [fg:189,147,249]Section")
     "Section has 2-space indent")
-  (assert-true (contains? out "    [fg:100,100,156]detail")
+  (assert-true (contains? out "    [fg:98,114,164]detail")
     "Detail has 4-space indent"))
 
 ;; ============================================================================

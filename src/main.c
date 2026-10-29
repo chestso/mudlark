@@ -330,9 +330,9 @@ static void process_line(const char *line)
                 ug = COLOR_USER_INPUT_G;
                 ub = COLOR_USER_INPUT_B;
             }
-            const char *gold = termcaps_format_fg_color(ur, ug, ub);
+            const char *echo_color = termcaps_format_fg_color(ur, ug, ub);
             const char *reset = termcaps_format_reset();
-            echo_to_viewport(gold, strlen(gold));
+            echo_to_viewport(echo_color, strlen(echo_color));
             echo_to_viewport(line, strlen(line));
             echo_to_viewport(reset, strlen(reset));
             echo_to_viewport("\n", 1);

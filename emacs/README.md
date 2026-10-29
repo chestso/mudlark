@@ -11,7 +11,9 @@ script files. Bundled with mudlark as a contrib package.
 - Brace matching (`C-M-f` / `C-M-b`) and brace highlighting
 - Indentation based on brace nesting (`TAB`)
 - Case-insensitive command recognition
-- [Charm](https://charm.land)-inspired color palette with 8 faces (dark and light variants)
+- [Dracula](https://draculatheme.com/spec) palette faces, plus the spec's light
+  counterpart Alucard for light backgrounds — 8 faces, foreground only, so a
+  transparent terminal background shows through
 
 ## Build targets
 
