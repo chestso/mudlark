@@ -84,10 +84,16 @@ dnl Check for pkg-config
 PKG_PROG_PKG_CONFIG
 
 dnl Check for ditty
-PKG_CHECK_MODULES([DITTY], [ditty])
+dnl The minimum is the release mudlark is built and tested against; the CI
+dnl dependency pin in .github/workflows/windows.yml tracks the same version
+dnl (bump both together).
+PKG_CHECK_MODULES([DITTY], [ditty >= 0.7.1])
 
 dnl Check for boba
-PKG_CHECK_MODULES([BOBA], [boba])
+dnl boba's runtime API is not stable across releases (the I/O-source seam,
+dnl TuiColor carriers), so the floor is the release this tree compiles
+dnl against — again matched by the CI pin.
+PKG_CHECK_MODULES([BOBA], [boba >= 0.5.3])
 
 dnl Platform-specific socket libraries
 case "$host_os" in

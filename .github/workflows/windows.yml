@@ -25,6 +25,14 @@ jobs:
     defaults:
       run:
         shell: msys2 {0}
+    env:
+      # Pinned chestso dependency refs — single source for the checkouts
+      # below. Bump alongside the pkg-config minimums in configure.ac. A
+      # floating master lets boba/ditty churn break this repo's CI mid-work,
+      # and a tag build would then ship a Windows ZIP compiled against an
+      # unreleased boba.
+      DITTY_REF: v0.7.1
+      BOBA_REF: v0.5.3
 
     steps:
       - name: Checkout mudlark
@@ -36,6 +44,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: chestso/ditty
+          ref: ${{ env.DITTY_REF }}
           path: ditty
           fetch-depth: 0
 
@@ -43,6 +52,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: chestso/boba
+          ref: ${{ env.BOBA_REF }}
           path: boba
           fetch-depth: 0
 

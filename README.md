@@ -22,9 +22,13 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 
 ## Dependencies
 
-- ditty (installed to `~/.local`, auto-detected via pkg-config)
+- ditty ≥ 0.7.1 (installed to `~/.local`, auto-detected via pkg-config)
+- boba ≥ 0.5.3 (installed to `~/.local`, auto-detected via pkg-config)
 - Boehm GC (via ditty)
 - PCRE2 (via ditty)
+
+The minimums are the releases this tree is built and tested against; the CI
+dependency pins in `.github/workflows/windows.yml` track the same versions.
 
 ## Building
 
