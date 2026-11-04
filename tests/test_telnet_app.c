@@ -368,6 +368,85 @@ static void test_page_keys_no_cmd(void)
 }
 
 /* ========================================================================
+ * Tests for Ctrl+D handling
+ * ======================================================================== */
+
+/* Ctrl+D reaches the app as TUI_MSG_EOF, not as a key press. The app turns it
+ * back into a delete-char for the textinput (readline), so it deletes the
+ * character under the cursor instead of doing nothing. */
+static void test_ctrl_d_eof_deletes_char_under_cursor(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "hello");
+    tui_textinput_set_cursor(ti, 1);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_eof());
+
+    assert(result.cmd == NULL); /* never a quit */
+    assert(strcmp(tui_textinput_text(ti), "hllo") == 0);
+    assert(tui_textinput_cursor(ti) == 1);
+
+    test_app_free(app);
+}
+
+/* At end of line Ctrl+D deletes nothing and must not swallow the input. */
+static void test_ctrl_d_eof_at_end_of_line_is_noop(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "hello");
+    tui_textinput_set_cursor(ti, 5);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_eof());
+
+    assert(result.cmd == NULL);
+    assert(strcmp(tui_textinput_text(ti), "hello") == 0);
+    assert(tui_textinput_cursor(ti) == 5);
+
+    test_app_free(app);
+}
+
+/* Ctrl+D on an empty input is a no-op: mudlark quits via :quit, never EOF. */
+static void test_ctrl_d_eof_on_empty_input_does_not_quit(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_eof());
+
+    assert(result.cmd == NULL);
+    assert(tui_textinput_len(ti) == 0);
+
+    test_app_free(app);
+}
+
+/* With the viewport focused, Ctrl+D leaves the input line alone. */
+static void test_ctrl_d_eof_ignored_when_viewport_focused(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "hello");
+    tui_textinput_set_cursor(ti, 1);
+
+    /* Shift-Tab moves focus to the viewport. */
+    TuiMsg switch_focus = tui_msg_key(TUI_KEY_TAB, 0, TUI_MOD_SHIFT);
+    TuiUpdateResult r = test_app_update(app, switch_focus);
+    if (r.cmd)
+        tui_cmd_free(r.cmd);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_eof());
+
+    assert(result.cmd == NULL);
+    assert(strcmp(tui_textinput_text(ti), "hello") == 0);
+
+    test_app_free(app);
+}
+
+/* ========================================================================
  * Tests for runtime integration (full component lifecycle through runtime)
  * ======================================================================== */
 
@@ -506,6 +585,12 @@ int main(void)
     RUN_TEST(test_page_up_scrolls);
     RUN_TEST(test_page_down_scrolls);
     RUN_TEST(test_page_keys_no_cmd);
+
+    /* Ctrl+D tests */
+    RUN_TEST(test_ctrl_d_eof_deletes_char_under_cursor);
+    RUN_TEST(test_ctrl_d_eof_at_end_of_line_is_noop);
+    RUN_TEST(test_ctrl_d_eof_on_empty_input_does_not_quit);
+    RUN_TEST(test_ctrl_d_eof_ignored_when_viewport_focused);
 
     /* Runtime integration tests */
     RUN_TEST(test_runtime_flush_renders);

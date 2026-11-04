@@ -129,6 +129,18 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
         return tui_update_result_none();
     }
 
+    /* Ctrl+D never arrives as a key press: boba's input parser turns the
+     * control byte (and the kitty protocol's `CSI 100;5u`) into
+     * TUI_MSG_EOF, a semantic verdict, and leaves the decision to the app.
+     * A MUD client must not quit on it — quitting is `:quit` — so it is
+     * re-issued as the ctrl+d key press the textinput's delete-char path is
+     * written for (readline: delete the character under the cursor). */
+    if (msg.type == TUI_MSG_EOF) {
+        if (app->focused_widget != 0)
+            return tui_update_result_none();
+        msg = tui_msg_key(TUI_KEY_NONE, 'd', TUI_MOD_CTRL);
+    }
+
     /* Route key messages based on focused widget. */
     if (msg.type == TUI_MSG_KEY_PRESS) {
         /* Shift-Tab toggles focus between textinput and viewport. */

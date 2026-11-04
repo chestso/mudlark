@@ -86,7 +86,8 @@ TESTS = \
     tintin-action-depth.lisp \
     test-case-completion.lisp \
     test_test_server.py \
-    test-shift-tab.sh
+    test-shift-tab.sh \
+    test-ctrl-d.sh
 
 TEST_EXTENSIONS = .lisp .py .sh
 LISP_LOG_COMPILER = $(srcdir)/run-test.sh
@@ -137,5 +138,6 @@ EXTRA_DIST = \
     tintin-action-depth.lisp \
     test-case-completion.lisp \
     test_test_server.py \
-    test-shift-tab.sh
+    test-shift-tab.sh \
+    test-ctrl-d.sh
 
