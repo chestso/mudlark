@@ -32,7 +32,7 @@ jobs:
       # and a tag build would then ship a Windows ZIP compiled against an
       # unreleased boba.
       DITTY_REF: v0.7.2
-      BOBA_REF: v0.7.0
+      BOBA_REF: v0.7.1
 
     steps:
       - name: Checkout mudlark

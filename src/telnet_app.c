@@ -151,7 +151,9 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
     /* Ctrl+D is readline's delete-char: re-issued as the ctrl+d key press the
      * textinput's own deletion path is written for, so it deletes the
      * character under the cursor (and takes its undo snapshot). It is never a
-     * quit — quitting is `:quit`. */
+     * quit — quitting is `:quit`. boba 0.7.1 handles TUI_MSG_EOF itself with
+     * exactly this edit; the translation stays so the key does not depend on
+     * which boba the binary was linked against. */
     if (msg.type == TUI_MSG_EOF)
         msg = tui_msg_key(TUI_KEY_NONE, 'd', TUI_MOD_CTRL);
 

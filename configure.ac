@@ -93,7 +93,7 @@ dnl Check for boba
 dnl boba's runtime API is not stable across releases (the I/O-source seam,
 dnl TuiColor carriers), so the floor is the release this tree compiles
 dnl against — again matched by the CI pin.
-PKG_CHECK_MODULES([BOBA], [boba >= 0.7.0])
+PKG_CHECK_MODULES([BOBA], [boba >= 0.7.1])
 
 dnl Platform-specific socket libraries
 case "$host_os" in
