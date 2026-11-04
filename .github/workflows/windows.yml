@@ -31,8 +31,8 @@ jobs:
       # floating master lets boba/ditty churn break this repo's CI mid-work,
       # and a tag build would then ship a Windows ZIP compiled against an
       # unreleased boba.
-      DITTY_REF: v0.7.1
-      BOBA_REF: v0.5.3
+      DITTY_REF: v0.7.2
+      BOBA_REF: v0.7.0
 
     steps:
       - name: Checkout mudlark
