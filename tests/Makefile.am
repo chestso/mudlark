@@ -87,7 +87,7 @@ TESTS = \
     test-case-completion.lisp \
     test_test_server.py \
     test-shift-tab.sh \
-    test-ctrl-d.sh
+    test-input-keys.sh
 
 TEST_EXTENSIONS = .lisp .py .sh
 LISP_LOG_COMPILER = $(srcdir)/run-test.sh
@@ -139,5 +139,5 @@ EXTRA_DIST = \
     test-case-completion.lisp \
     test_test_server.py \
     test-shift-tab.sh \
-    test-ctrl-d.sh
+    test-input-keys.sh
 

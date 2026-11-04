@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# tmux-driven test for Ctrl+D (delete-char under the cursor).
+# tmux-driven test for the input line's semantic keys: Ctrl+D, Ctrl+C and a
+# bracketed paste.
 #
-# boba's input parser turns Ctrl+D into TUI_MSG_EOF — a semantic verdict, not
-# a key press — and leaves the decision to the app. telnet_app_update() has to
-# hand it back to the textinput as the ctrl+d key its delete-char path is
-# written for, and must never quit the client on it.
+# boba's input parser classifies these as TUI_MSG_EOF / TUI_MSG_INTERRUPT /
+# TUI_MSG_PASTE — semantic messages, not key presses — and leaves the
+# consequences to the app. telnet_app_update() has to:
+#   Ctrl+D  delete the character under the cursor (readline), never quit
+#   Ctrl+C  discard the line being typed (readline keyboard-quit)
+#   paste   insert the payload as text, so a pasted newline is a newline and
+#           does not submit the line
 #
 # Exit code 77 = "skip" per autotools convention.
 
@@ -28,7 +32,7 @@ if [ ! -x "$MUDLARK_BIN" ]; then
 	exit 77
 fi
 
-SESSION="mudlark-ctrl-d-$$"
+SESSION="mudlark-input-keys-$$"
 SERVER_PID=
 
 cleanup() {
@@ -90,13 +94,22 @@ assert_pane_missing() {
 	fi
 }
 
-# 1. Plain typing reaches the textinput.
+assert_alive() {
+	if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+		echo "FAIL: the client died: $1" >&2
+		exit 1
+	fi
+}
+
+# --- Ctrl+D: delete-char under the cursor -------------------------------
+
+# Plain typing reaches the textinput.
 tmux send-keys -t "$SESSION" 'hello'
 sleep 0.2
 assert_pane_contains 'hello'
 
-# 2. Ctrl+A to the start of the line, then Ctrl+D deletes the character
-#    under the cursor (readline), not the line and not the session.
+# Ctrl+A to the start of the line, then Ctrl+D deletes the character under the
+# cursor (readline), not the line and not the session.
 tmux send-keys -t "$SESSION" C-a
 sleep 0.2
 tmux send-keys -t "$SESSION" C-d
@@ -104,20 +117,48 @@ sleep 0.2
 assert_pane_contains 'ello'
 assert_pane_missing 'hello'
 
-# 3. A second Ctrl+D deletes the next character: the key repeats.
+# A second Ctrl+D deletes the next character: the key repeats.
 tmux send-keys -t "$SESSION" C-d
 sleep 0.2
 assert_pane_contains 'llo'
 assert_pane_missing 'ello'
 
-# 4. Ctrl+D never quits: the session is still alive, still accepts input, and
-#    the cursor stayed at the start of the line (delete-char does not move it).
-if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-	echo "FAIL: Ctrl+D quit the client" >&2
+assert_alive 'Ctrl+D'
+
+# --- Ctrl+C: discard the line being typed -------------------------------
+
+# The cursor is at the start of "llo"; Ctrl+C throws the line away.
+tmux send-keys -t "$SESSION" C-c
+sleep 0.2
+assert_pane_missing 'llo'
+assert_alive 'Ctrl+C'
+
+# The input line still works afterwards.
+tmux send-keys -t "$SESSION" 'fresh'
+sleep 0.2
+assert_pane_contains 'fresh'
+tmux send-keys -t "$SESSION" C-c
+sleep 0.2
+assert_pane_missing 'fresh'
+assert_alive 'Ctrl+C on a full line'
+
+# --- Bracketed paste: text, not keystrokes ------------------------------
+
+# The view declares bracketed paste, so tmux wraps a paste in the markers
+# (tmux tracks the mode per pane). A line break in the payload must stay a
+# line break: were it keystrokes, the first line would be submitted and the
+# server would echo it back into the viewport.
+printf 'alpha\nbeta' | tmux load-buffer -b mudlark-paste -
+tmux paste-buffer -p -b mudlark-paste -t "$SESSION"
+sleep 0.3
+assert_pane_contains 'alpha'
+assert_pane_contains 'beta'
+PASTE_ECHOES="$(pane | grep -cF 'alpha' || true)"
+if [ "$PASTE_ECHOES" != "1" ]; then
+	echo "FAIL: pasted first line reached the server (submitted): saw 'alpha' $PASTE_ECHOES times" >&2
+	dump
 	exit 1
 fi
-tmux send-keys -t "$SESSION" '!'
-sleep 0.2
-assert_pane_contains '!llo'
+assert_alive 'bracketed paste'
 
 echo PASS

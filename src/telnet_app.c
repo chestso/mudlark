@@ -105,6 +105,15 @@ static void telnet_app_free(TuiModel *model)
     free(app);
 }
 
+/* The input line can grow or shrink (multiline wrap), which moves the
+ * divider rows and the viewport height: redo the layout after any edit. */
+static void telnet_app_refresh_layout(TelnetAppModel *app)
+{
+    telnet_app_set_terminal_size(app, app->terminal_width,
+                                 app->terminal_height);
+    tui_viewport_scroll_to_bottom(app->viewport);
+}
+
 /* Update TelnetApp with a message */
 static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
 {
@@ -129,16 +138,37 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
         return tui_update_result_none();
     }
 
-    /* Ctrl+D never arrives as a key press: boba's input parser turns the
-     * control byte (and the kitty protocol's `CSI 100;5u`) into
-     * TUI_MSG_EOF, a semantic verdict, and leaves the decision to the app.
-     * A MUD client must not quit on it — quitting is `:quit` — so it is
-     * re-issued as the ctrl+d key press the textinput's delete-char path is
-     * written for (readline: delete the character under the cursor). */
-    if (msg.type == TUI_MSG_EOF) {
+    /* Ctrl+D, Ctrl+C and a bracketed paste reach the app as semantic
+     * messages, never as key presses: boba's parser decides the meaning and
+     * leaves the consequence here. All three belong to the input line, so
+     * with the viewport focused they are dropped rather than acted on. */
+    if (msg.type == TUI_MSG_EOF || msg.type == TUI_MSG_INTERRUPT ||
+        msg.type == TUI_MSG_PASTE) {
         if (app->focused_widget != 0)
             return tui_update_result_none();
+    }
+
+    /* Ctrl+D is readline's delete-char: re-issued as the ctrl+d key press the
+     * textinput's own deletion path is written for, so it deletes the
+     * character under the cursor (and takes its undo snapshot). It is never a
+     * quit — quitting is `:quit`. */
+    if (msg.type == TUI_MSG_EOF)
         msg = tui_msg_key(TUI_KEY_NONE, 'd', TUI_MOD_CTRL);
+
+    /* Ctrl+C is readline's keyboard-quit: discard the line being typed. */
+    if (msg.type == TUI_MSG_INTERRUPT) {
+        tui_textinput_clear(app->textinput);
+        telnet_app_refresh_layout(app);
+        return tui_update_result_none();
+    }
+
+    /* A bracketed paste is text, one edit, not synthesized keystrokes: the
+     * textinput inserts the payload, so a pasted line break stays a line
+     * break instead of submitting the line. */
+    if (msg.type == TUI_MSG_PASTE) {
+        TuiUpdateResult result = tui_textinput_update(app->textinput, msg);
+        telnet_app_refresh_layout(app);
+        return result;
     }
 
     /* Route key messages based on focused widget. */
@@ -180,9 +210,7 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
 
         TuiUpdateResult result = tui_textinput_update(app->textinput, msg);
         /* Recalculate layout in case textinput height changed (multiline) */
-        telnet_app_set_terminal_size(app, app->terminal_width,
-                                     app->terminal_height);
-        tui_viewport_scroll_to_bottom(app->viewport);
+        telnet_app_refresh_layout(app);
         return result;
     }
 
@@ -282,6 +310,9 @@ static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
     v.alt_screen = 1;
     v.mouse_mode = TUI_MOUSE_MODE_CELL_MOTION;
     v.kbd_enhancements = TUI_KBD_KITTY;
+    /* Bracketed paste: a paste then arrives as TUI_MSG_PASTE text instead of
+     * keystrokes, so a pasted line break does not submit the line. */
+    v.bracketed_paste = 1;
     v.window_title = app->window_title;
     v.cursor = (app->focused_widget == 1)
                    ? tui_viewport_cursor_pos(app->viewport)

@@ -451,6 +451,146 @@ static void test_ctrl_d_eof_ignored_when_viewport_focused(void)
 }
 
 /* ========================================================================
+ * Tests for Ctrl+C (TUI_MSG_INTERRUPT) handling
+ * ======================================================================== */
+
+/* Ctrl+C is readline's keyboard-quit: the line being typed is discarded. */
+static void test_ctrl_c_interrupt_clears_the_line(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "kill me");
+    tui_textinput_set_cursor(ti, 4);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_interrupt());
+
+    assert(result.cmd == NULL); /* discard the line, never quit */
+    assert(tui_textinput_len(ti) == 0);
+    assert(tui_textinput_cursor(ti) == 0);
+
+    test_app_free(app);
+}
+
+/* Ctrl+C on an empty line is harmless and still returns no command. */
+static void test_ctrl_c_interrupt_on_empty_line(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_interrupt());
+
+    assert(result.cmd == NULL);
+    assert(tui_textinput_len(ti) == 0);
+
+    test_app_free(app);
+}
+
+/* With the viewport focused, Ctrl+C leaves the input line alone. */
+static void test_ctrl_c_interrupt_ignored_when_viewport_focused(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "keep me");
+
+    TuiMsg switch_focus = tui_msg_key(TUI_KEY_TAB, 0, TUI_MOD_SHIFT);
+    TuiUpdateResult r = test_app_update(app, switch_focus);
+    if (r.cmd)
+        tui_cmd_free(r.cmd);
+
+    TuiUpdateResult result = test_app_update(app, tui_msg_interrupt());
+
+    assert(result.cmd == NULL);
+    assert(strcmp(tui_textinput_text(ti), "keep me") == 0);
+
+    test_app_free(app);
+}
+
+/* ========================================================================
+ * Tests for bracketed paste (TUI_MSG_PASTE) handling
+ * ======================================================================== */
+
+/* The view declares bracketed paste so the terminal sends a paste as text
+ * instead of as keystrokes. */
+static void test_view_enables_bracketed_paste(void)
+{
+    TelnetAppModel *app = create_test_app();
+    DynamicBuffer *out = dynamic_buffer_create(1024);
+    assert(out != NULL);
+
+    TuiView v = g_comp->view((TuiModel *)app, out);
+    assert(v.bracketed_paste == 1);
+
+    dynamic_buffer_destroy(out);
+    test_app_free(app);
+}
+
+/* A paste is one edit of text, not keystrokes: a line break in it stays a
+ * line break instead of submitting the line. */
+static void test_paste_inserts_text_without_submitting(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    const char *pasted = "look\nnorth";
+    TuiMsg msg = tui_msg_paste(strdup(pasted), strlen(pasted));
+    TuiUpdateResult result = test_app_update(app, msg);
+
+    assert(result.cmd == NULL); /* a newline in a paste does not submit */
+    assert(strcmp(tui_textinput_text(ti), pasted) == 0);
+    assert(tui_textinput_line_count(ti) == 2);
+
+    tui_msg_free(&msg);
+    test_app_free(app);
+}
+
+/* A paste appends at the cursor and keeps what was already typed. */
+static void test_paste_inserts_at_cursor(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "ab");
+    tui_textinput_set_cursor(ti, 1);
+
+    const char *pasted = "XY";
+    TuiMsg msg = tui_msg_paste(strdup(pasted), strlen(pasted));
+    TuiUpdateResult result = test_app_update(app, msg);
+
+    assert(result.cmd == NULL);
+    assert(strcmp(tui_textinput_text(ti), "aXYb") == 0);
+
+    tui_msg_free(&msg);
+    test_app_free(app);
+}
+
+/* With the viewport focused, a paste is dropped rather than landing in an
+ * input line the user is not looking at. */
+static void test_paste_ignored_when_viewport_focused(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "keep me");
+
+    TuiMsg switch_focus = tui_msg_key(TUI_KEY_TAB, 0, TUI_MOD_SHIFT);
+    TuiUpdateResult r = test_app_update(app, switch_focus);
+    if (r.cmd)
+        tui_cmd_free(r.cmd);
+
+    const char *pasted = "dropped";
+    TuiMsg msg = tui_msg_paste(strdup(pasted), strlen(pasted));
+    TuiUpdateResult result = test_app_update(app, msg);
+
+    assert(result.cmd == NULL);
+    assert(strcmp(tui_textinput_text(ti), "keep me") == 0);
+
+    tui_msg_free(&msg);
+    test_app_free(app);
+}
+
+/* ========================================================================
  * Tests for runtime integration (full component lifecycle through runtime)
  * ======================================================================== */
 
@@ -595,6 +735,17 @@ int main(void)
     RUN_TEST(test_ctrl_d_eof_at_end_of_line_is_noop);
     RUN_TEST(test_ctrl_d_eof_on_empty_input_does_not_quit);
     RUN_TEST(test_ctrl_d_eof_ignored_when_viewport_focused);
+
+    /* Ctrl+C tests */
+    RUN_TEST(test_ctrl_c_interrupt_clears_the_line);
+    RUN_TEST(test_ctrl_c_interrupt_on_empty_line);
+    RUN_TEST(test_ctrl_c_interrupt_ignored_when_viewport_focused);
+
+    /* Bracketed paste tests */
+    RUN_TEST(test_view_enables_bracketed_paste);
+    RUN_TEST(test_paste_inserts_text_without_submitting);
+    RUN_TEST(test_paste_inserts_at_cursor);
+    RUN_TEST(test_paste_ignored_when_viewport_focused);
 
     /* Runtime integration tests */
     RUN_TEST(test_runtime_flush_renders);
