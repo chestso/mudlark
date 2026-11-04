@@ -12,6 +12,10 @@
  * to a closed local port.
  */
 
+/* A --enable-release build compiles with -DNDEBUG, which would turn every
+ * assert() below into a no-op — a test that can never fail. Undo it before
+ * assert.h is first included, so the checks stay live in every build mode. */
+#undef NDEBUG
 #include <assert.h>
 #include <stdio.h>
 
