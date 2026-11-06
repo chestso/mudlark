@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "colors.h" /* UiColor, for the color/logging stubs below */
+
 #ifdef _WIN32
 #include <io.h>
 #include <winsock2.h>
@@ -233,23 +235,19 @@ static int testkit_recv_all(int fd, char *buf, int bufsize)
 
 #ifndef TESTKIT_NO_STUB_LISP
 void *lisp_x_get_environment(void) { return NULL; }
-int lisp_x_get_color(const char *n, int *r, int *g, int *b)
+int lisp_x_get_color(const char *n, UiColor *out)
 {
     (void)n;
-    (void)r;
-    (void)g;
-    (void)b;
+    (void)out;
     return -1;
 }
 #endif
 
-#ifndef TESTKIT_NO_STUB_TERMCAPS
-const char *termcaps_format_reset(void) { return ""; }
-const char *termcaps_format_fg_color(int r, int g, int b)
+#ifndef TESTKIT_NO_STUB_UI_COLORS
+const char *ui_reset_sgr(void) { return ""; }
+const char *ui_fg_sgr(UiColor c)
 {
-    (void)r;
-    (void)g;
-    (void)b;
+    (void)c;
     return "";
 }
 #endif

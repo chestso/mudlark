@@ -14,13 +14,10 @@
     ((eq? capability 'fg-color) "")
     ((eq? capability 'bg-color) "")
     ((eq? capability 'reset) "")
-    ((eq? capability 'unicode?) #t)
-    ((eq? capability 'type) "xterm-256color")
-    ((eq? capability 'encoding) "UTF-8")
-    ((eq? capability 'color-level) 4)
+    ((eq? capability 'truecolor?) #t)
+    ((eq? capability 'width-model) "grid")
     ((eq? capability 'cols) 80)
     ((eq? capability 'rows) 24)
-    ((eq? capability 'truecolor?) #t)
     (#t "")))
 
 ;; App-level mocks for C builtins

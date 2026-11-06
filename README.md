@@ -7,14 +7,14 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 ## Features
 
 - RFC 854 compliant telnet client with NAWS and I/O logging
-- TUI interface with readline-style input, history, and tab completion cycling
+- Inline TUI: the terminal's own scrollback above a live input line, with readline-style editing, history, and tab completion cycling
 - Lisp scripting via ditty integration
 - TinTin++ compatible MUD scripting (`#alias`, `#action`, `#highlight`, `#var`, `#color`)
 - Multi-session support with per-session hook registries and telnet connections
-- ANSI color support with truecolor detection — UI colors are the
-  [Dracula](https://draculatheme.com/spec) palette, degraded to the nearest
-  256-color index or ANSI slot when the terminal can't show 24-bit color
-- Statusbar with mode display and notifications
+- ANSI color support in two tiers — UI colors are the
+  [Dracula](https://draculatheme.com/spec) palette: exact RGB where the terminal
+  reports truecolor, the palette's own ANSI16 slot otherwise
+- A divider line with mode display and notifications, right in the frame above the input
 - F-key bindings (F1–F12) configurable from Lisp
 - Speedwalk shorthand (e.g., `3n2e` expands to `n;n;n;e;e`)
 - Configurable log filtering by module and level
@@ -91,32 +91,11 @@ Once running, use these commands (prefixed with `:`):
 
 ## Selecting and Copying Text
 
-The viewport (the scrollback area above the input line) supports mouse and keyboard selection. Copied text goes to the system clipboard via OSC 52.
+mudlark runs inline in the terminal's primary screen buffer, so the scrollback above the input line is your terminal's own: select, copy, search and scroll with the terminal's usual keys and mouse bindings. Nothing is intercepted, and nothing mudlark prints is lost when it exits.
 
-### With the mouse
+If your terminal sends the mouse to the application, hold the key it uses to bypass that (Shift in most terminals, Option in iTerm2) while you select.
 
-- **Click and drag** with the left mouse button to select. Dragging past the top or bottom edge auto-scrolls.
-- **Release**, then press **M-w** (Alt-w) to copy the selection to the clipboard.
-- **Mouse wheel** scrolls the viewport.
-
-Note: the terminal's own selection (Shift-drag in most terminals) is bypassed because mudlark runs in alt-screen mouse-reporting mode. Use the viewport's selection instead.
-
-### With the keyboard
-
-Press **Shift-Tab** to move focus from the input line to the viewport. Focusing the viewport automatically enters copy mode (an Emacs-style mark-and-region interface), with the cursor parked at the top-left of the visible region.
-
-| Key                              | Action                                  |
-| -------------------------------- | --------------------------------------- |
-| `C-SPC`                          | Set / toggle the mark at the cursor     |
-| Arrows / `C-n` `C-p` `C-f` `C-b` | Move the cursor                         |
-| `Home` / `End` or `C-a` / `C-e`  | Start / end of line                     |
-| `PgUp` / `PgDn` or `M-v` / `C-v` | Page up / down                          |
-| `M-<` / `M->`                    | Top / bottom of scrollback              |
-| `M-w`                            | Copy selection to clipboard, clear mark |
-| `C-g` or `Escape`                | Clear mark; if no mark, exit copy mode  |
-| `Shift-Tab`                      | Return focus to the input line          |
-
-If there is no mark, `M-w` copies the entire content line under the cursor.
+The input line keeps bracketed paste: a pasted newline stays a newline and does not submit the line.
 
 ## TinTin++ Scripting
 

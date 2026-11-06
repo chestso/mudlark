@@ -63,13 +63,20 @@ for _ in $(seq 1 50); do
 	sleep 0.1
 done
 
-# Start mudlark inside tmux.
+# Start mudlark inside tmux. The pane stays alive after the client exits (the
+# trailing sleep), so the last check can read the scrollback the client left
+# behind.
 tmux new-session -d -s "$SESSION" -x 120 -y 40 \
-	"$MUDLARK_BIN" 127.0.0.1 "$PORT"
+	sh -c "$MUDLARK_BIN 127.0.0.1 $PORT; sleep 60"
 sleep 0.5
 
 pane() {
 	tmux capture-pane -p -t "$SESSION"
+}
+
+# The whole scrollback, not just the visible pane.
+scrollback() {
+	tmux capture-pane -p -S - -t "$SESSION"
 }
 
 dump() {
@@ -160,5 +167,29 @@ if [ "$PASTE_ECHOES" != "1" ]; then
 	exit 1
 fi
 assert_alive 'bracketed paste'
+
+# --- Output survives :quit ----------------------------------------------
+
+# Inline mode writes to the terminal's own scrollback, so what the session
+# printed is still there after the client is gone.
+tmux send-keys -t "$SESSION" 'scrollback-marker'
+sleep 0.2
+tmux send-keys -t "$SESSION" Enter
+sleep 0.4
+tmux send-keys -t "$SESSION" ':quit'
+sleep 0.2
+tmux send-keys -t "$SESSION" Enter
+sleep 0.6
+
+if ! scrollback | grep -qF 'scrollback-marker'; then
+	echo "FAIL: the session's output did not survive :quit" >&2
+	dump
+	exit 1
+fi
+if ! scrollback | grep -qF 'Goodbye.'; then
+	echo "FAIL: :quit left no goodbye line" >&2
+	dump
+	exit 1
+fi
 
 echo PASS

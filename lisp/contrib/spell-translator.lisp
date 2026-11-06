@@ -280,9 +280,9 @@
 
 (define *spell-utter-marker-len* (length *spell-utter-marker*))
 
-;; Muted magic purple for translations (Dracula Purple; `termcap` degrades it
-;; to the nearest palette slot on terminals without truecolor)
-(define *spell-color* (termcap 'fg-color 189 147 249))
+;; Muted magic purple for translations (Dracula Purple; `termcap` falls back to
+;; the spec's ANSI16 slot — 12, bright blue — on terminals without truecolor)
+(define *spell-color* (termcap 'fg-color 189 147 249 12))
 
 (define *spell-color-reset* "\033[0m")
 

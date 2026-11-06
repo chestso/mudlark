@@ -6,6 +6,8 @@
 #include <boba/dynamic_buffer.h>
 #include <stddef.h>
 
+#include "colors.h"
+
 /* Initialize Lisp interpreter, environment, and load init file */
 int lisp_x_init(void);
 
@@ -80,10 +82,10 @@ const char *lisp_x_get_prompt(void);
  * no completions. */
 char **lisp_x_complete_prefix(const char *prefix);
 
-/* Extract RGB from a Lisp '(r g b) defvar.
+/* Extract a color role from a Lisp '(r g b [slot]) defvar.
  * Returns 0 on success, -1 on failure (variable missing or wrong shape).
  * Callers should fall back to colors.h defaults on failure. */
-int lisp_x_get_color(const char *var_name, int *r, int *g, int *b);
+int lisp_x_get_color(const char *var_name, UiColor *out);
 
 /* Terminal echo callback type - called by terminal-echo builtin */
 typedef void (*TerminalEchoCallback)(const char *text, size_t len);

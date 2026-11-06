@@ -1,13 +1,7 @@
 # tests/Makefile.am - Test files
 
 # C tests
-check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum test_terminal_caps
-
-test_terminal_caps_SOURCES = test_terminal_caps.c
-test_terminal_caps_CPPFLAGS = \
-    -I$(top_srcdir)/include
-test_terminal_caps_LDADD = \
-    $(top_builddir)/src/mudlark-terminal_caps.o
+check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum
 
 test_telnet_app_SOURCES = test_telnet_app.c
 test_telnet_app_CPPFLAGS = \
@@ -16,6 +10,7 @@ test_telnet_app_CPPFLAGS = \
     $(BOBA_CFLAGS)
 test_telnet_app_LDADD = \
     $(top_builddir)/src/mudlark-telnet_app.o \
+    $(top_builddir)/src/mudlark-colors.o \
     $(BOBA_LIBS) \
     $(SOCKET_LIBS)
 
@@ -43,7 +38,7 @@ test_add_hook_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-telnet.o \
     $(top_builddir)/src/mudlark-logging.o \
     $(top_builddir)/src/mudlark-path_utils.o \
-    $(top_builddir)/src/mudlark-terminal_caps.o \
+    $(top_builddir)/src/mudlark-colors.o \
     $(DITTY_LIBS) \
     $(BOBA_LIBS) \
     $(SOCKET_LIBS)
@@ -59,7 +54,7 @@ test_telnet_connect_fixnum_LDADD = \
     $(top_builddir)/src/mudlark-telnet.o \
     $(top_builddir)/src/mudlark-logging.o \
     $(top_builddir)/src/mudlark-path_utils.o \
-    $(top_builddir)/src/mudlark-terminal_caps.o \
+    $(top_builddir)/src/mudlark-colors.o \
     $(DITTY_LIBS) \
     $(BOBA_LIBS) \
     $(SOCKET_LIBS)
@@ -72,7 +67,6 @@ TESTS = \
     test_event_loop \
     test_add_hook_fixnum \
     test_telnet_connect_fixnum \
-    test_terminal_caps \
     hooks.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \
@@ -86,7 +80,7 @@ TESTS = \
     tintin-action-depth.lisp \
     test-case-completion.lisp \
     test_test_server.py \
-    test-shift-tab.sh \
+    test-inline-tmux.sh \
     test-input-keys.sh
 
 TEST_EXTENSIONS = .lisp .py .sh
@@ -138,6 +132,6 @@ EXTRA_DIST = \
     tintin-action-depth.lisp \
     test-case-completion.lisp \
     test_test_server.py \
-    test-shift-tab.sh \
+    test-inline-tmux.sh \
     test-input-keys.sh
 

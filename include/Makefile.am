@@ -3,5 +3,4 @@
 mudlarkincludedir = $(includedir)/mudlark
 
 mudlarkinclude_HEADERS = \
-    telnet.h \
-    terminal_caps.h
+    telnet.h

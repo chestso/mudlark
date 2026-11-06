@@ -1,14 +1,13 @@
 /* test_telnet_app.c - Tests for TelnetApp component and runtime integration
  *
- * Tests the uncommitted changes in telnet_app.c:
- * - Mouse scroll wheel handling in telnet_app_update()
- * - PageUp/PageDown key handling in telnet_app_update()
- * - WINDOW_SIZE message handling in telnet_app_update()
- * - Layout: the dividers bracket whatever the textinput paints
- * - telnet_app_component() interface for runtime integration
- */
-
-/* A --enable-release build compiles with -DNDEBUG, which would turn every
+ * The app is an inline frame over the terminal's own scrollback:
+ * - output goes through the transcript's system stream (telnet_app_echo)
+ * - the frame is a divider + textinput, painted with relative moves
+ * - the input line owns the semantic keys (Ctrl+D, Ctrl+C, paste)
+ * - the input's box is one geometry (boba 0.8): FIXED rows, INLINE
+ *   placement, the terminal's width
+ *
+ * A --enable-release build compiles with -DNDEBUG, which would turn every
  * assert() below into a no-op — a test that can never fail. Undo it before
  * assert.h is first included, so the checks stay live in every build mode. */
 #undef NDEBUG
@@ -25,46 +24,16 @@
 
 #include <boba/cmd.h>
 #include <boba/component.h>
-#include <boba/components/viewport.h>
 #include <boba/dynamic_buffer.h>
 #include <boba/msg.h>
 #include <boba/runtime.h>
+#include <boba/stream.h>
 
-#include "../include/terminal_caps.h"
+#include "../src/colors.h"
 #include "../src/telnet_app.h"
 
 /* Stub for lisp_x_call_fkey_hook (linked from telnet_app.o) */
 void lisp_x_call_fkey_hook(int fkey_num) { (void)fkey_num; }
-
-/* Stubs for terminal_caps (linked from telnet_app.o). The color level is
- * settable so the tier pick in telnet_app_set_border_color() is testable. */
-static int g_test_color_level = 4;
-
-int termcaps_get_color_level(void) { return g_test_color_level; }
-
-int termcaps_rgb_to_256(int r, int g, int b)
-{
-    (void)r;
-    (void)g;
-    (void)b;
-    return 231;
-}
-
-int termcaps_rgb_to_16(int r, int g, int b)
-{
-    (void)r;
-    (void)g;
-    (void)b;
-    return 6;
-}
-
-int termcaps_rgb_to_8(int r, int g, int b)
-{
-    (void)r;
-    (void)g;
-    (void)b;
-    return 2;
-}
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -98,21 +67,42 @@ static TelnetAppModel *create_test_app(void)
     return (TelnetAppModel *)r.model;
 }
 
+/* An app wired to a transcript, as main.c wires it. */
+static TelnetAppModel *create_test_app_with_transcript(TuiTranscript *t)
+{
+    if (!g_comp)
+        g_comp = telnet_app_component();
+    TelnetAppConfig cfg = {
+        .terminal_width = 80,
+        .terminal_height = 24,
+        .prompt = "> ",
+        .show_prompt = 1,
+        .history_size = 10,
+        .transcript = t,
+    };
+    TuiInitResult r = g_comp->init(&cfg);
+    return (TelnetAppModel *)r.model;
+}
+
 static TuiUpdateResult test_app_update(TelnetAppModel *app, TuiMsg msg)
 {
     return g_comp->update((TuiModel *)app, msg);
 }
 
-static void test_app_free(TelnetAppModel *app)
+static void test_app_free(TelnetAppModel *app) { g_comp->free((TuiModel *)app); }
+
+/* A fresh buffer for one frame. Caller destroys it. */
+static DynamicBuffer *new_frame_buffer(void)
 {
-    g_comp->free((TuiModel *)app);
+    DynamicBuffer *out = dynamic_buffer_create(1024);
+    assert(out != NULL);
+    return out;
 }
 
 /* ========================================================================
- * Tests for telnet_app_component() (new in uncommitted changes)
+ * Component interface
  * ======================================================================== */
 
-/* Test that telnet_app_component() returns a valid component interface */
 static void test_component_interface_exists(void)
 {
     const TuiComponent *comp = telnet_app_component();
@@ -123,7 +113,6 @@ static void test_component_interface_exists(void)
     assert(comp->free != NULL);
 }
 
-/* Test that component init creates a valid model */
 static void test_component_init(void)
 {
     const TuiComponent *comp = telnet_app_component();
@@ -141,13 +130,13 @@ static void test_component_init(void)
     TelnetAppModel *app = (TelnetAppModel *)result.model;
     assert(app->terminal_width == 100);
     assert(app->terminal_height == 40);
+    assert(app->textinput != NULL);
 
     if (result.cmd)
         tui_cmd_free(result.cmd);
     comp->free(result.model);
 }
 
-/* Test that component can be used with tui_runtime_create */
 static void test_component_with_runtime(void)
 {
     FILE *devnull = fopen(DEVNULL, "w");
@@ -160,8 +149,6 @@ static void test_component_with_runtime(void)
         .show_prompt = 1,
         .history_size = 10,
     };
-    /* alt-screen is now declared on TuiView (see telnet_app_view) — no
-     * longer a runtime-config field. */
     TuiRuntimeConfig rt_cfg = {
         .output = devnull,
     };
@@ -180,10 +167,9 @@ static void test_component_with_runtime(void)
 }
 
 /* ========================================================================
- * Tests for WINDOW_SIZE handling (moved into component in uncommitted changes)
+ * WINDOW_SIZE handling
  * ======================================================================== */
 
-/* Test that WINDOW_SIZE message updates component dimensions */
 static void test_window_size_updates_dimensions(void)
 {
     TelnetAppModel *app = create_test_app();
@@ -201,7 +187,6 @@ static void test_window_size_updates_dimensions(void)
     test_app_free(app);
 }
 
-/* Test that WINDOW_SIZE with small dimensions works */
 static void test_window_size_small(void)
 {
     TelnetAppModel *app = create_test_app();
@@ -217,14 +202,45 @@ static void test_window_size_small(void)
     test_app_free(app);
 }
 
+/* The width reaches the textinput, which bounds its own rows. */
+static void test_window_size_sets_textinput_width(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiMsg msg = tui_msg_window_size(40, 24);
+    TuiUpdateResult result = test_app_update(app, msg);
+
+    assert(tui_textinput_geometry(telnet_app_get_textinput(app)).width == 40);
+
+    if (result.cmd)
+        tui_cmd_free(result.cmd);
+    test_app_free(app);
+}
+
 /* ========================================================================
- * Layout tests: the dividers bracket whatever the input paints
+ * Layout: the input's box, and the frame it sits in
  * ======================================================================== */
 
-/* The input is bottom-anchored: its rows sit between the top divider and the
- * bottom border, and the viewport takes everything above. boba 0.8's
- * textinput is told its box with one geometry (FIXED rows, AT_ROW placement),
- * so an app that reads the painted height back keeps the dividers tight. */
+/* The input owns a box: the terminal's width, at most height - 1 rows (the
+ * divider takes the row above it), placed inline — the frame has no
+ * absolute row, so the box has none either. */
+static void test_layout_gives_the_input_a_box(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    telnet_app_set_terminal_size(app, 80, 24);
+
+    TuiTextInputGeometry g = tui_textinput_geometry(ti);
+    assert(g.sizing == TUI_TEXTINPUT_FIXED);
+    assert(g.place == TUI_TEXTINPUT_INLINE);
+    assert(g.width == 80);
+    assert(g.rows == 23); /* height - 1: the divider's row */
+
+    test_app_free(app);
+}
+
+/* A multi-line input paints one row per line, and the frame grows with it:
+ * the divider plus the input's rows are the whole frame. */
 static void test_layout_brackets_a_multiline_input(void)
 {
     TelnetAppModel *app = create_test_app();
@@ -233,23 +249,15 @@ static void test_layout_brackets_a_multiline_input(void)
     tui_textinput_set_text(ti, "one\ntwo\nthree");
     telnet_app_set_terminal_size(app, 80, 24);
 
+    assert(tui_textinput_total_rows(ti) == 3);
     assert(tui_textinput_visible_rows(ti) == 3);
-
-    TuiTextInputGeometry g = tui_textinput_geometry(ti);
-    assert(g.sizing == TUI_TEXTINPUT_FIXED);
-    assert(g.place == TUI_TEXTINPUT_AT_ROW);
-    assert(g.width == 80);
-    assert(g.rows == 21); /* height - 3: viewport, top divider, bottom border */
-    assert(g.row == 21);  /* 24 - 3 content rows */
-    assert(app->bottom_border_row == 24);
-    assert(app->top_border_row == 20); /* directly above the input */
 
     test_app_free(app);
 }
 
-/* A long input scrolls inside its box instead of running over the bottom
- * border: the box stops at height - 3 and the frame still ends on the last
- * row of the screen. */
+/* A long input scrolls inside its box instead of running over the bottom of
+ * the screen: the box stops at height - 1, so the frame (divider included)
+ * still fits the terminal. */
 static void test_layout_caps_a_tall_input(void)
 {
     TelnetAppModel *app = create_test_app();
@@ -264,21 +272,18 @@ static void test_layout_caps_a_tall_input(void)
 
     assert(tui_textinput_total_rows(ti) == 41);
 
-    TuiTextInputGeometry g = tui_textinput_geometry(ti);
     int visible = tui_textinput_visible_rows(ti);
-    assert(visible == 21);
-    assert(app->top_border_row == 2);
-    assert(app->bottom_border_row == 24);
+    assert(visible == 23); /* height - 1: the divider's row */
 
-    /* No row of the frame may land past the screen: the box is the last
-     * thing above the bottom border. */
-    assert(g.row + visible - 1 <= app->terminal_height - 1);
+    /* No row of the frame may land past the screen: the divider's row plus
+     * the input's box is the whole frame. */
+    assert(1 + visible <= app->terminal_height);
 
     test_app_free(app);
 }
 
 /* CLIP is the input's mode, so a command wider than the screen scrolls under
- * boba's horizontal window rather than pushing the dividers up a row. */
+ * boba's horizontal window rather than growing the frame a row. */
 static void test_long_line_does_not_grow_the_input(void)
 {
     TelnetAppModel *app = create_test_app();
@@ -292,7 +297,6 @@ static void test_long_line_does_not_grow_the_input(void)
 
     assert(tui_textinput_total_rows(ti) == 1);
     assert(tui_textinput_visible_rows(ti) == 1);
-    assert(app->top_border_row == 22);
 
     test_app_free(app);
 }
@@ -322,162 +326,149 @@ static void test_multiline_clip_keeps_longer_rows_whole(void)
 }
 
 /* ========================================================================
- * Tests for mouse scroll handling (moved into component in uncommitted changes)
+ * The frame: inline, relative, divider + input
  * ======================================================================== */
 
-/* Test that mouse wheel up scrolls the viewport up */
-static void test_mouse_wheel_up_scrolls(void)
+/* view() declares inline mode and no alt screen / mouse: the terminal's
+ * scrollback is the output history, and the terminal owns scrolling. */
+static void test_view_declares_inline_mode(void)
 {
     TelnetAppModel *app = create_test_app();
+    DynamicBuffer *out = new_frame_buffer();
 
-    /* Add enough content to enable scrolling */
-    for (int i = 0; i < 50; i++) {
-        telnet_app_echo(app, "line\n", 5);
-    }
+    TuiView v = g_comp->view((TuiModel *)app, out);
+    assert(v.render_mode == TUI_RENDER_INLINE);
+    assert(v.alt_screen == 0);
+    assert(v.mouse_mode == TUI_MOUSE_MODE_NONE);
+    /* The probe feeds the color tier (profile.truecolor). */
+    assert(v.probe_terminal == 1);
 
-    /* Scroll to bottom first (default position) */
-    TuiViewport *vp = telnet_app_get_viewport(app);
-    int initial_offset = (int)vp->y_offset;
-
-    /* Send mouse wheel up */
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_UP, TUI_MOUSE_ACTION_PRESS, 1,
-                               1, 0);
-    TuiUpdateResult result = test_app_update(app, msg);
-
-    int new_offset = (int)vp->y_offset;
-    assert(new_offset < initial_offset); /* Scrolled up (offset decreased) */
-
-    if (result.cmd)
-        tui_cmd_free(result.cmd);
+    dynamic_buffer_destroy(out);
     test_app_free(app);
 }
 
-/* Test that mouse wheel down scrolls the viewport down */
-static void test_mouse_wheel_down_scrolls(void)
+/* The frame carries the divider (with the status title) and the input
+ * line, and nothing absolute: no CSI row moves, no alt-screen bytes. */
+static void test_view_paints_divider_and_input(void)
 {
     TelnetAppModel *app = create_test_app();
+    telnet_app_set_status_text(app, "🔒");
+    telnet_app_set_prompt(app, "> ");
 
-    /* Add content and scroll up first */
-    for (int i = 0; i < 50; i++) {
-        telnet_app_echo(app, "line\n", 5);
-    }
-    telnet_app_scroll_up(app, 10);
+    DynamicBuffer *out = new_frame_buffer();
+    (void)g_comp->view((TuiModel *)app, out);
+    const char *frame = dynamic_buffer_data(out);
+    assert(frame != NULL);
 
-    TuiViewport *vp = telnet_app_get_viewport(app);
-    int initial_offset = (int)vp->y_offset;
+    /* Divider glyph, status title, and the prompt on the row below. */
+    assert(strstr(frame, "─") != NULL);
+    assert(strstr(frame, "🔒") != NULL);
+    assert(strstr(frame, "> ") != NULL);
+    /* Relative, not absolute: no cursor-to-row sequences. */
+    assert(strstr(frame, "\x1b[?1049h") == NULL);
 
-    /* Send mouse wheel down */
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_DOWN, TUI_MOUSE_ACTION_PRESS, 1,
-                               1, 0);
-    TuiUpdateResult result = test_app_update(app, msg);
-
-    int new_offset = (int)vp->y_offset;
-    assert(new_offset > initial_offset); /* Scrolled down (offset increased) */
-
-    if (result.cmd)
-        tui_cmd_free(result.cmd);
+    dynamic_buffer_destroy(out);
     test_app_free(app);
 }
 
-/* Test that mouse scroll returns no command */
-static void test_mouse_scroll_no_cmd(void)
+/* The cursor is the textinput's own row, offset by the divider row. */
+static void test_view_cursor_is_below_the_divider(void)
 {
     TelnetAppModel *app = create_test_app();
+    DynamicBuffer *out = new_frame_buffer();
 
-    TuiMsg msg = tui_msg_mouse(TUI_MOUSE_WHEEL_UP, TUI_MOUSE_ACTION_PRESS, 1, 1,
-                               0);
-    TuiUpdateResult result = test_app_update(app, msg);
-    assert(result.cmd == NULL);
+    TuiView v = g_comp->view((TuiModel *)app, out);
+    TuiCursor ti = tui_textinput_cursor_pos(telnet_app_get_textinput(app));
 
+    assert(v.cursor.visible == 1);
+    assert(v.cursor.row == ti.row + 1);
+    assert(v.cursor.col == ti.col);
+
+    dynamic_buffer_destroy(out);
     test_app_free(app);
 }
 
-/* Test that non-scroll mouse events are handled without crashing */
-static void test_mouse_click_no_crash(void)
+/* A multi-line input grows the frame instead of scrolling a viewport. */
+static void test_view_grows_with_a_multiline_input(void)
 {
     TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
 
-    TuiMsg msg =
-        tui_msg_mouse(TUI_MOUSE_LEFT, TUI_MOUSE_ACTION_PRESS, 5, 10, 0);
-    TuiUpdateResult result = test_app_update(app, msg);
-    assert(result.cmd == NULL);
+    tui_textinput_set_text(ti, "one\ntwo\nthree");
 
+    DynamicBuffer *out = new_frame_buffer();
+    TuiView v = g_comp->view((TuiModel *)app, out);
+
+    /* Divider row + 3 input rows: the cursor is on the last one. */
+    assert(v.cursor.row == 4);
+
+    dynamic_buffer_destroy(out);
+    test_app_free(app);
+}
+
+/* The quitting frame paints one blank row: with no rows below it to
+ * stale-erase, the frame's top row has to be cleared by being painted. */
+static void test_quitting_frame_is_empty(void)
+{
+    TelnetAppModel *app = create_test_app();
+    telnet_app_set_status_text(app, "connected");
+    telnet_app_set_quitting(app, 1);
+
+    DynamicBuffer *out = dynamic_buffer_create(256);
+    assert(out != NULL);
+    TuiView v = g_comp->view((TuiModel *)app, out);
+
+    /* Exactly one frame row, and it is empty: "\r" + EL and nothing else. */
+    assert(strcmp(dynamic_buffer_data(out), "\r\x1b[K") == 0);
+    assert(v.cursor.visible == 0);
+    assert(v.render_mode == TUI_RENDER_INLINE);
+
+    dynamic_buffer_destroy(out);
     test_app_free(app);
 }
 
 /* ========================================================================
- * Tests for PageUp/PageDown handling (moved into component in uncommitted)
+ * Output seam: telnet_app_echo stages into the transcript
  * ======================================================================== */
 
-/* Test that PageUp scrolls the viewport up */
-static void test_page_up_scrolls(void)
+/* The transcript is system-stream only: n_streams = 0 must be a working
+ * configuration (no user stream, no classifier, no renderer). */
+static void test_transcript_create_is_system_only(void)
 {
-    TelnetAppModel *app = create_test_app();
+    TuiTranscript *t = telnet_app_transcript_create();
+    assert(t != NULL);
 
-    /* Add enough content to scroll */
-    for (int i = 0; i < 100; i++) {
-        telnet_app_echo(app, "line\n", 5);
-    }
+    assert(tui_transcript_stream_raw_len(t, -1) == 0);
+    assert(tui_transcript_staged_bytes(t) == 0);
 
-    TuiViewport *vp = telnet_app_get_viewport(app);
-    int initial_offset = (int)vp->y_offset;
-
-    /* Send PageUp key */
-    TuiMsg msg = tui_msg_key(TUI_KEY_PAGE_UP, 0, 0);
-    TuiUpdateResult result = test_app_update(app, msg);
-
-    int new_offset = (int)vp->y_offset;
-    assert(new_offset < initial_offset);
-
-    if (result.cmd)
-        tui_cmd_free(result.cmd);
-    test_app_free(app);
+    tui_transcript_free(t);
 }
 
-/* Test that PageDown scrolls the viewport down */
-static void test_page_down_scrolls(void)
+/* telnet_app_echo is the output seam: the bytes stage in the transcript's
+ * system stream, byte-identical (partial lines included). */
+static void test_echo_stages_bytes_in_transcript(void)
 {
-    TelnetAppModel *app = create_test_app();
+    TuiTranscript *t = telnet_app_transcript_create();
+    assert(t != NULL);
+    TelnetAppModel *app = create_test_app_with_transcript(t);
+    assert(app != NULL);
 
-    /* Add content and scroll up */
-    for (int i = 0; i < 100; i++) {
-        telnet_app_echo(app, "line\n", 5);
-    }
-    telnet_app_page_up(app);
+    telnet_app_echo(app, "A dusty path.\n", 14);
+    assert(tui_transcript_stream_raw_len(t, -1) == 14);
+    /* Staged for the commit pass (boba owns the framing: LF becomes
+     * CRLF there, so the staged byte count is not the raw count). */
+    assert(tui_transcript_staged_bytes(t) >= 14);
 
-    TuiViewport *vp = telnet_app_get_viewport(app);
-    int initial_offset = (int)vp->y_offset;
-
-    /* Send PageDown key */
-    TuiMsg msg = tui_msg_key(TUI_KEY_PAGE_DOWN, 0, 0);
-    TuiUpdateResult result = test_app_update(app, msg);
-
-    int new_offset = (int)vp->y_offset;
-    assert(new_offset > initial_offset);
-
-    if (result.cmd)
-        tui_cmd_free(result.cmd);
-    test_app_free(app);
-}
-
-/* Test that PageUp/PageDown return no command */
-static void test_page_keys_no_cmd(void)
-{
-    TelnetAppModel *app = create_test_app();
-
-    TuiMsg msg_up = tui_msg_key(TUI_KEY_PAGE_UP, 0, 0);
-    TuiUpdateResult result_up = test_app_update(app, msg_up);
-    assert(result_up.cmd == NULL);
-
-    TuiMsg msg_down = tui_msg_key(TUI_KEY_PAGE_DOWN, 0, 0);
-    TuiUpdateResult result_down = test_app_update(app, msg_down);
-    assert(result_down.cmd == NULL);
+    /* A partial line (a MUD prompt) is one more unit, not a newline. */
+    telnet_app_echo(app, "> ", 2);
+    assert(tui_transcript_stream_raw_len(t, -1) == 16);
 
     test_app_free(app);
+    tui_transcript_free(t);
 }
 
 /* ========================================================================
- * Tests for Ctrl+D handling
+ * Ctrl+D handling
  * ======================================================================== */
 
 /* Ctrl+D reaches the app as TUI_MSG_EOF, not as a key press. The app turns it
@@ -532,31 +523,8 @@ static void test_ctrl_d_eof_on_empty_input_does_not_quit(void)
     test_app_free(app);
 }
 
-/* With the viewport focused, Ctrl+D leaves the input line alone. */
-static void test_ctrl_d_eof_ignored_when_viewport_focused(void)
-{
-    TelnetAppModel *app = create_test_app();
-    TuiTextInput *ti = telnet_app_get_textinput(app);
-
-    tui_textinput_set_text(ti, "hello");
-    tui_textinput_set_cursor(ti, 1);
-
-    /* Shift-Tab moves focus to the viewport. */
-    TuiMsg switch_focus = tui_msg_key(TUI_KEY_TAB, 0, TUI_MOD_SHIFT);
-    TuiUpdateResult r = test_app_update(app, switch_focus);
-    if (r.cmd)
-        tui_cmd_free(r.cmd);
-
-    TuiUpdateResult result = test_app_update(app, tui_msg_eof());
-
-    assert(result.cmd == NULL);
-    assert(strcmp(tui_textinput_text(ti), "hello") == 0);
-
-    test_app_free(app);
-}
-
 /* ========================================================================
- * Tests for Ctrl+C (TUI_MSG_INTERRUPT) handling
+ * Ctrl+C (TUI_MSG_INTERRUPT) handling
  * ======================================================================== */
 
 /* Ctrl+C is readline's keyboard-quit: the line being typed is discarded. */
@@ -591,29 +559,8 @@ static void test_ctrl_c_interrupt_on_empty_line(void)
     test_app_free(app);
 }
 
-/* With the viewport focused, Ctrl+C leaves the input line alone. */
-static void test_ctrl_c_interrupt_ignored_when_viewport_focused(void)
-{
-    TelnetAppModel *app = create_test_app();
-    TuiTextInput *ti = telnet_app_get_textinput(app);
-
-    tui_textinput_set_text(ti, "keep me");
-
-    TuiMsg switch_focus = tui_msg_key(TUI_KEY_TAB, 0, TUI_MOD_SHIFT);
-    TuiUpdateResult r = test_app_update(app, switch_focus);
-    if (r.cmd)
-        tui_cmd_free(r.cmd);
-
-    TuiUpdateResult result = test_app_update(app, tui_msg_interrupt());
-
-    assert(result.cmd == NULL);
-    assert(strcmp(tui_textinput_text(ti), "keep me") == 0);
-
-    test_app_free(app);
-}
-
 /* ========================================================================
- * Tests for bracketed paste (TUI_MSG_PASTE) handling
+ * Bracketed paste (TUI_MSG_PASTE) handling
  * ======================================================================== */
 
 /* The view declares bracketed paste so the terminal sends a paste as text
@@ -621,8 +568,7 @@ static void test_ctrl_c_interrupt_ignored_when_viewport_focused(void)
 static void test_view_enables_bracketed_paste(void)
 {
     TelnetAppModel *app = create_test_app();
-    DynamicBuffer *out = dynamic_buffer_create(1024);
-    assert(out != NULL);
+    DynamicBuffer *out = new_frame_buffer();
 
     TuiView v = g_comp->view((TuiModel *)app, out);
     assert(v.bracketed_paste == 1);
@@ -670,36 +616,27 @@ static void test_paste_inserts_at_cursor(void)
     test_app_free(app);
 }
 
-/* With the viewport focused, a paste is dropped rather than landing in an
- * input line the user is not looking at. */
-static void test_paste_ignored_when_viewport_focused(void)
+/* ========================================================================
+ * F-keys dispatch to Lisp regardless of focus
+ * ======================================================================== */
+
+static void test_fkey_is_not_text(void)
 {
     TelnetAppModel *app = create_test_app();
     TuiTextInput *ti = telnet_app_get_textinput(app);
 
-    tui_textinput_set_text(ti, "keep me");
-
-    TuiMsg switch_focus = tui_msg_key(TUI_KEY_TAB, 0, TUI_MOD_SHIFT);
-    TuiUpdateResult r = test_app_update(app, switch_focus);
-    if (r.cmd)
-        tui_cmd_free(r.cmd);
-
-    const char *pasted = "dropped";
-    TuiMsg msg = tui_msg_paste(strdup(pasted), strlen(pasted));
-    TuiUpdateResult result = test_app_update(app, msg);
+    TuiUpdateResult result = test_app_update(app, tui_msg_key(TUI_KEY_F1, 0, 0));
 
     assert(result.cmd == NULL);
-    assert(strcmp(tui_textinput_text(ti), "keep me") == 0);
+    assert(tui_textinput_len(ti) == 0);
 
-    tui_msg_free(&msg);
     test_app_free(app);
 }
 
 /* ========================================================================
- * Tests for runtime integration (full component lifecycle through runtime)
+ * Runtime integration (full component lifecycle through the runtime)
  * ======================================================================== */
 
-/* Test that runtime flush renders without crashing */
 static void test_runtime_flush_renders(void)
 {
     FILE *devnull = fopen(DEVNULL, "w");
@@ -720,10 +657,8 @@ static void test_runtime_flush_renders(void)
         (TuiComponent *)telnet_app_component(), &app_cfg, &rt_cfg);
     assert(rt != NULL);
 
-    /* Flush should render the component without crashing */
     tui_runtime_flush(rt);
 
-    /* Add some content and flush again */
     TelnetAppModel *app = (TelnetAppModel *)tui_runtime_model(rt);
     telnet_app_echo(app, "Hello, World!\n", 14);
     tui_runtime_flush(rt);
@@ -732,7 +667,49 @@ static void test_runtime_flush_renders(void)
     fclose(devnull);
 }
 
-/* Test that sending WINDOW_SIZE through runtime updates the component */
+/* A full inline round trip: output commits to the scrollback (one commit
+ * batch per flush) while the frame repaints below it. */
+static void test_runtime_commits_transcript_above_the_frame(void)
+{
+    FILE *devnull = fopen(DEVNULL, "w");
+    assert(devnull != NULL);
+
+    TuiTranscript *t = telnet_app_transcript_create();
+    assert(t != NULL);
+
+    TelnetAppConfig app_cfg = {
+        .terminal_width = 80,
+        .terminal_height = 24,
+        .prompt = "> ",
+        .show_prompt = 1,
+        .history_size = 10,
+        .transcript = t,
+    };
+    TuiRuntimeConfig rt_cfg = {
+        .output = devnull,
+    };
+
+    TuiRuntime *rt = tui_runtime_create(
+        (TuiComponent *)telnet_app_component(), &app_cfg, &rt_cfg);
+    assert(rt != NULL);
+    tui_runtime_set_transcript(rt, t);
+
+    TelnetAppModel *app = (TelnetAppModel *)tui_runtime_model(rt);
+    telnet_app_echo(app, "You are standing in a field.\n", 29);
+    assert(tui_transcript_staged_bytes(t) > 0);
+    assert(tui_transcript_commit_count(t) == 0);
+
+    tui_runtime_flush(rt);
+
+    /* The commit pass ran once and the staging is drained. */
+    assert(tui_transcript_commit_count(t) == 1);
+    assert(tui_transcript_staged_bytes(t) == 0);
+
+    tui_runtime_free(rt);
+    tui_transcript_free(t);
+    fclose(devnull);
+}
+
 static void test_runtime_sends_window_size(void)
 {
     FILE *devnull = fopen(DEVNULL, "w");
@@ -757,7 +734,6 @@ static void test_runtime_sends_window_size(void)
     assert(app->terminal_width == 80);
     assert(app->terminal_height == 24);
 
-    /* Send window size through the runtime */
     TuiMsg msg = tui_msg_window_size(120, 40);
     tui_runtime_send(rt, msg);
 
@@ -769,41 +745,185 @@ static void test_runtime_sends_window_size(void)
 }
 
 /* ========================================================================
- * Border color tier tests
+ * Color tiers (D10): exact RGB on a truecolor terminal, the role's ANSI16
+ * slot below it, and nothing else.
  * ======================================================================== */
 
-/* The divider color must be handed to boba in the form the terminal can
- * render: 24-bit only on a truecolor terminal, a palette index below that. */
-static void test_border_color_uses_terminal_tier(void)
+/* The divider's role paints as 24-bit RGB when the profile says truecolor. */
+static void test_border_color_is_rgb_when_truecolor(void)
 {
+    ui_set_truecolor(1);
     TelnetAppModel *app = create_test_app();
-    assert(app != NULL);
+    telnet_app_set_border_color(app, UI_COLOR_DIVIDER_CONNECTED);
 
-    g_test_color_level = TERM_COLOR_TRUECOLOR;
-    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
-    assert(app->border_style.fg.type == TUI_COLOR_RGB);
+    DynamicBuffer *out = new_frame_buffer();
+    (void)g_comp->view((TuiModel *)app, out);
 
-    g_test_color_level = TERM_COLOR_256;
-    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
-    assert(app->border_style.fg.type == TUI_COLOR_ANSI256);
-    assert(app->border_style.fg.v.ansi == 231);
+    assert(strstr(dynamic_buffer_data(out), "38;2;80;250;123") != NULL);
 
-    g_test_color_level = TERM_COLOR_16;
-    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
-    assert(app->border_style.fg.type == TUI_COLOR_ANSI16);
-    assert(app->border_style.fg.v.ansi == 6);
-
-    g_test_color_level = TERM_COLOR_8;
-    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
-    assert(app->border_style.fg.type == TUI_COLOR_ANSI16);
-    assert(app->border_style.fg.v.ansi == 2);
-
-    g_test_color_level = TERM_COLOR_NONE;
-    telnet_app_set_border_color(app, 0x50, 0xFA, 0x7B);
-    assert(app->border_style.fg.type == TUI_COLOR_NONE);
-
-    g_test_color_level = TERM_COLOR_TRUECOLOR;
+    dynamic_buffer_destroy(out);
     test_app_free(app);
+    ui_set_truecolor(0);
+}
+
+/* Below truecolor the same role paints as its ANSI16 slot: bright green,
+ * which SGR spells 92. */
+static void test_border_color_is_a_slot_without_truecolor(void)
+{
+    ui_set_truecolor(0);
+    TelnetAppModel *app = create_test_app();
+    telnet_app_set_border_color(app, UI_COLOR_DIVIDER_CONNECTED);
+
+    DynamicBuffer *out = new_frame_buffer();
+    (void)g_comp->view((TuiModel *)app, out);
+    const char *frame = dynamic_buffer_data(out);
+    assert(frame != NULL);
+
+    /* boba composes the style's SGR: faint (2) + bright green (92). */
+    assert(strstr(frame, "38;2;") == NULL);
+    assert(strstr(frame, "92m") != NULL);
+
+    dynamic_buffer_destroy(out);
+    test_app_free(app);
+}
+
+/* The tier helpers themselves: ui_tui_color picks the form, the SGR
+ * formatters spell it. */
+static void test_ui_color_tier_selection(void)
+{
+    UiColor cyan = UI_COLOR_USER_INPUT; /* 139 233 253, slot 14 */
+
+    ui_set_truecolor(1);
+    assert(ui_tui_color(cyan).type == TUI_COLOR_RGB);
+    assert(strcmp(ui_fg_sgr(cyan), "\x1b[38;2;139;233;253m") == 0);
+
+    ui_set_truecolor(0);
+    assert(ui_tui_color(cyan).type == TUI_COLOR_ANSI16);
+    assert(ui_tui_color(cyan).v.ansi == 14);
+    /* Slot 14 is bright cyan: fg 90+6 = 96, bg 100+6 = 106. */
+    assert(strcmp(ui_fg_sgr(cyan), "\x1b[96m") == 0);
+    assert(strcmp(ui_bg_sgr(cyan), "\x1b[106m") == 0);
+
+    /* A role with no slot has no color below truecolor, and no bytes. */
+    UiColor slotless = UI_COLOR(1, 2, 3, -1);
+    assert(ui_tui_color(slotless).type == TUI_COLOR_NONE);
+    assert(strcmp(ui_fg_sgr(slotless), "") == 0);
+
+    assert(strcmp(ui_reset_sgr(), "\x1b[0m") == 0);
+}
+
+/* ========================================================================
+ * Line endings: the server's own idea of a row break
+ * ======================================================================== */
+
+/* Read a FILE* back as a NUL-terminated string; *len_out is the byte count.
+ * Caller frees. */
+static char *slurp(FILE *fp, size_t *len_out)
+{
+    fflush(fp);
+    assert(fseek(fp, 0, SEEK_END) == 0);
+    long size = ftell(fp);
+    assert(size >= 0);
+    rewind(fp);
+    char *buf = (char *)malloc((size_t)size + 1);
+    assert(buf != NULL);
+    size_t got = fread(buf, 1, (size_t)size, fp);
+    buf[got] = '\0';
+    if (len_out)
+        *len_out = got;
+    return buf;
+}
+
+/* One echo call's worth of bytes (the length is explicit: a chunk may carry
+ * NUL bytes). */
+typedef struct
+{
+    const char *bytes;
+    size_t len;
+} Chunk;
+
+#define CHUNK(s) { (s), sizeof(s) - 1 }
+
+/* Feed `chunks` through echo (one call each), commit once, and return what
+ * reached the output. Caller frees. */
+static char *commit_chunks(const Chunk *chunks, size_t n_chunks,
+                           size_t *len_out)
+{
+    FILE *out = tmpfile();
+    assert(out != NULL);
+    TuiTranscript *t = telnet_app_transcript_create();
+    assert(t != NULL);
+
+    TelnetAppConfig cfg = {
+        .terminal_width = 80,
+        .terminal_height = 24,
+        .prompt = "> ",
+        .show_prompt = 1,
+        .history_size = 10,
+        .transcript = t,
+    };
+    TuiRuntimeConfig rt_cfg = { .output = out };
+    TuiRuntime *rt = tui_runtime_create(
+        (TuiComponent *)telnet_app_component(), &cfg, &rt_cfg);
+    assert(rt != NULL);
+    tui_runtime_set_transcript(rt, t);
+
+    TelnetAppModel *app = (TelnetAppModel *)tui_runtime_model(rt);
+    for (size_t i = 0; i < n_chunks; i++) {
+        telnet_app_echo(app, chunks[i].bytes, chunks[i].len);
+    }
+    tui_runtime_flush(rt);
+
+    char *bytes = slurp(out, len_out);
+    tui_runtime_free(rt);
+    tui_transcript_free(t);
+    fclose(out);
+    return bytes;
+}
+
+/* A server that ends its rows with LF CR (Carrion Fields does) must get one
+ * row break per line, not two: boba counts every CR and every LF. */
+static void test_echo_collapses_lfcr_line_endings(void)
+{
+    const Chunk chunks[] = { CHUNK("By what name do you wish to be mourned?\n\r"
+                                   "Password:\n\r") };
+    char *out = commit_chunks(chunks, 1, NULL);
+
+    assert(strstr(out, "mourned?\r\nPassword:\r\n") != NULL);
+    /* No blank row between the two server lines. */
+    assert(strstr(out, "mourned?\r\n\r\n") == NULL);
+
+    free(out);
+}
+
+/* CR LF and LF CR are the same break, and a pair split across two chunks is
+ * still one break. A repeated terminator is still two (a blank row). */
+static void test_echo_normalizes_mixed_line_endings(void)
+{
+    const Chunk chunks[] = { CHUNK("alpha\n"), CHUNK("\rbeta\n\n"),
+                             CHUNK("gamma\r\n") };
+    char *out = commit_chunks(chunks, 3, NULL);
+
+    /* alpha LF / CR beta (one break, split across calls), a deliberate
+     * blank row, then a plain CRLF. */
+    assert(strstr(out, "alpha\r\nbeta\r\n\r\ngamma\r\n") != NULL);
+    assert(strstr(out, "alpha\r\n\r\nbeta") == NULL);
+
+    free(out);
+}
+
+/* A CR NUL pair is one bare CR (NVT), and the NUL never reaches the
+ * scrollback. */
+static void test_echo_drops_nvt_cr_nul(void)
+{
+    const Chunk chunks[] = { CHUNK("one\r\0two\r\0") };
+    size_t len = 0;
+    char *out = commit_chunks(chunks, 1, &len);
+
+    assert(strstr(out, "one\r\ntwo\r\n") != NULL);
+    assert(memchr(out, '\0', len) == NULL);
+
+    free(out);
 }
 
 /* ======================================================================== */
@@ -820,46 +940,56 @@ int main(void)
     /* WINDOW_SIZE tests */
     RUN_TEST(test_window_size_updates_dimensions);
     RUN_TEST(test_window_size_small);
+    RUN_TEST(test_window_size_sets_textinput_width);
 
     /* Layout tests */
+    RUN_TEST(test_layout_gives_the_input_a_box);
     RUN_TEST(test_layout_brackets_a_multiline_input);
     RUN_TEST(test_layout_caps_a_tall_input);
     RUN_TEST(test_long_line_does_not_grow_the_input);
     RUN_TEST(test_multiline_clip_keeps_longer_rows_whole);
 
-    /* Border color tier tests */
-    RUN_TEST(test_border_color_uses_terminal_tier);
+    /* Color tiers */
+    RUN_TEST(test_border_color_is_rgb_when_truecolor);
+    RUN_TEST(test_border_color_is_a_slot_without_truecolor);
+    RUN_TEST(test_ui_color_tier_selection);
 
-    /* Mouse scroll tests */
-    RUN_TEST(test_mouse_wheel_up_scrolls);
-    RUN_TEST(test_mouse_wheel_down_scrolls);
-    RUN_TEST(test_mouse_scroll_no_cmd);
-    RUN_TEST(test_mouse_click_no_crash);
+    /* Frame shape */
+    RUN_TEST(test_view_declares_inline_mode);
+    RUN_TEST(test_view_paints_divider_and_input);
+    RUN_TEST(test_view_cursor_is_below_the_divider);
+    RUN_TEST(test_view_grows_with_a_multiline_input);
+    RUN_TEST(test_quitting_frame_is_empty);
 
-    /* PageUp/PageDown tests */
-    RUN_TEST(test_page_up_scrolls);
-    RUN_TEST(test_page_down_scrolls);
-    RUN_TEST(test_page_keys_no_cmd);
+    /* Output seam */
+    RUN_TEST(test_transcript_create_is_system_only);
+    RUN_TEST(test_echo_stages_bytes_in_transcript);
+
+    /* Line endings */
+    RUN_TEST(test_echo_collapses_lfcr_line_endings);
+    RUN_TEST(test_echo_normalizes_mixed_line_endings);
+    RUN_TEST(test_echo_drops_nvt_cr_nul);
 
     /* Ctrl+D tests */
     RUN_TEST(test_ctrl_d_eof_deletes_char_under_cursor);
     RUN_TEST(test_ctrl_d_eof_at_end_of_line_is_noop);
     RUN_TEST(test_ctrl_d_eof_on_empty_input_does_not_quit);
-    RUN_TEST(test_ctrl_d_eof_ignored_when_viewport_focused);
 
     /* Ctrl+C tests */
     RUN_TEST(test_ctrl_c_interrupt_clears_the_line);
     RUN_TEST(test_ctrl_c_interrupt_on_empty_line);
-    RUN_TEST(test_ctrl_c_interrupt_ignored_when_viewport_focused);
 
     /* Bracketed paste tests */
     RUN_TEST(test_view_enables_bracketed_paste);
     RUN_TEST(test_paste_inserts_text_without_submitting);
     RUN_TEST(test_paste_inserts_at_cursor);
-    RUN_TEST(test_paste_ignored_when_viewport_focused);
+
+    /* F-key tests */
+    RUN_TEST(test_fkey_is_not_text);
 
     /* Runtime integration tests */
     RUN_TEST(test_runtime_flush_renders);
+    RUN_TEST(test_runtime_commits_transcript_above_the_frame);
     RUN_TEST(test_runtime_sends_window_size);
 
     printf("\n%d/%d tests passed.\n", tests_passed, tests_run);

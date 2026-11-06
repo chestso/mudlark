@@ -73,55 +73,61 @@
 ;; COLOR CONFIGURATION
 ;; ============================================================================
 ;; Palette: Dracula (https://draculatheme.com/spec). Each color is an
-;; (R G B) list; override in your config to customize.
+;; (R G B SLOT) list; override in your config to customize.
 ;;
-;; `termcap` chooses the form the terminal can actually show: 24-bit RGB on a
-;; truecolor terminal, the nearest 256-color index on a 256-color one, and the
-;; nearest ANSI slot on a 16- or 8-color one. So the exact Dracula colors below
-;; are used only where the terminal can render them.
+;; The colors come in the spec's two tables, and `termcap` picks one: the
+;; exact (R G B) triple on a truecolor terminal, the SLOT otherwise. There is
+;; no in-between — no 256-color index, no nearest-neighbour matching — because
+;; boba reports only "truecolor yes or no" and every Dracula hue has a slot in
+;; the spec's own ANSI table. SLOT is 0-15 (8-15 are the bright variants);
+;; omit it and the color simply disappears on a terminal without truecolor.
 ;;
 ;; No background is ever painted. Dracula's own #282A36 background is
 ;; deliberately unused: the terminal's background (transparent or otherwise)
 ;; always shows through.
-(defvar *color-user-input* '(139 233 253)
-  "Color for echoed user input. RGB list. Dracula Cyan.")
+(defvar *color-user-input* '(139 233 253 14)
+  "Color for echoed user input. (R G B SLOT). Dracula Cyan; slot 14 is bright cyan.")
 
-(defvar *color-divider-connected* '(80 250 123)
-  "Divider color when connected. RGB list. Dracula Green.")
+(defvar *color-divider-connected* '(80 250 123 10)
+  "Divider color when connected. (R G B SLOT). Dracula Green; slot 10 is bright green.")
 
-(defvar *color-divider-disconnected* '(98 114 164)
-  "Divider color when disconnected. RGB list. Dracula Comment.")
+(defvar *color-divider-disconnected* '(98 114 164 8)
+  "Divider color when disconnected. (R G B SLOT). Dracula Comment; slot 8 is bright black.")
 
-(defvar *color-log-debug* '(98 114 164)
-  "Color for debug log messages. RGB list. Dracula Comment.")
+(defvar *color-log-debug* '(98 114 164 8)
+  "Color for debug log messages. (R G B SLOT). Dracula Comment; slot 8 is bright black.")
 
-(defvar *color-log-info* '(139 233 253)
-  "Color for info log messages. RGB list. Dracula Cyan.")
+(defvar *color-log-info* '(139 233 253 14)
+  "Color for info log messages. (R G B SLOT). Dracula Cyan; slot 14 is bright cyan.")
 
-(defvar *color-log-warn* '(241 250 140)
-  "Color for warning log messages. RGB list. Dracula Yellow.")
+(defvar *color-log-warn* '(241 250 140 11)
+  "Color for warning log messages. (R G B SLOT). Dracula Yellow; slot 11 is bright yellow.")
 
-(defvar *color-log-error* '(255 85 85)
-  "Color for error log messages. RGB list. Dracula Red.")
+(defvar *color-log-error* '(255 85 85 9)
+  "Color for error log messages. (R G B SLOT). Dracula Red; slot 9 is bright red.")
 
-(defvar *color-script-header* '(255 121 198)
-  "Color for script-echo header text. RGB list. Dracula Pink.")
+(defvar *color-script-header* '(255 121 198 13)
+  "Color for script-echo header text. (R G B SLOT). Dracula Pink; slot 13 is bright magenta.")
 
-(defvar *color-script-desc* '(139 233 253)
-  "Color for script-echo description text. RGB list. Dracula Cyan.")
+(defvar *color-script-desc* '(139 233 253 14)
+  "Color for script-echo description text. (R G B SLOT). Dracula Cyan; slot 14 is bright cyan.")
 
-(defvar *color-script-section* '(189 147 249)
-  "Color for script-echo section titles. RGB list. Dracula Purple.")
+(defvar *color-script-section* '(189 147 249 12)
+  "Color for script-echo section titles. (R G B SLOT). Dracula Purple; slot 12 is bright blue.")
 
-(defvar *color-script-detail* '(98 114 164)
-  "Color for script-echo detail text. RGB list. Dracula Comment.")
+(defvar *color-script-detail* '(98 114 164 8)
+  "Color for script-echo detail text. (R G B SLOT). Dracula Comment; slot 8 is bright black.")
 
-(defvar *color-script-mdash* '(98 114 164)
-  "Color for script-echo mdash separator. RGB list. Dracula Comment.")
+(defvar *color-script-mdash* '(98 114 164 8)
+  "Color for script-echo mdash separator. (R G B SLOT). Dracula Comment; slot 8 is bright black.")
 
 (defun color->fg (rgb)
-  "Convert an RGB list to a foreground ANSI escape sequence."
-  (termcap 'fg-color (car rgb) (car (cdr rgb)) (car (cdr (cdr rgb)))))
+  "Convert an (R G B SLOT) color list to a foreground escape sequence.
+   The slot is optional: without it the color has no ANSI16 fallback."
+  (let ((slot (car (cdr (cdr (cdr rgb))))))
+    (if slot
+      (termcap 'fg-color (car rgb) (car (cdr rgb)) (car (cdr (cdr rgb))) slot)
+      (termcap 'fg-color (car rgb) (car (cdr rgb)) (car (cdr (cdr rgb)))))))
 
 ;; ============================================================================
 ;; WORD CHARACTER SET (whitelist)
@@ -867,22 +873,12 @@ Colors: header=pink, desc=cyan, section=purple, details=comment"
 ;; ============================================================================
 ;; STARTUP MESSAGE
 ;; ============================================================================
-(let* ((sep (if (termcap 'unicode?) " · " ", "))
-       (term-type (termcap 'type))
-       (encoding (termcap 'encoding))
-       (color-name
-        (let ((level (termcap 'color-level)))
-          (cond
-            ((= level 4) "truecolor")
-            ((= level 3) "256-color")
-            ((= level 2) "16-color")
-            ((> level 0) "8-color")
-            (#t nil))))
-       (term-info
-        (concat term-type (if color-name (concat sep color-name) "")
-         (if (and (string? encoding) (not (string=? encoding "ASCII")))
-           (concat sep encoding)
-           ""))))
+;; The terminal facts come from boba alone: the color tier from its
+;; capability profile, the cell-width model it pinned at startup.
+(let* ((sep " · ")
+       (color-name (if (termcap 'truecolor?) "truecolor" "16-color"))
+       (width-model (termcap 'width-model))
+       (term-info (concat width-model sep color-name)))
   (script-echo (concat "mudlark " *version*) :desc
    ":help for built-in commands, /help for scripts" :section
    (concat "Terminal\n" term-info)))

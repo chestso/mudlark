@@ -5,7 +5,7 @@
 #endif
 
 #include "../include/telnet.h"
-#include "../include/terminal_caps.h"
+#include "colors.h"
 #include "lisp_extension.h"
 #include "logging.h"
 #include "path_utils.h"
@@ -14,6 +14,8 @@
 #include <boba/cmd.h>
 #include <boba/dynamic_buffer.h>
 #include <boba/runtime.h>
+#include <boba/terminal_profile.h>
+#include <boba/unicode.h>
 #include <ditty/file_utils.h>
 #include <ditty/lisp.h>
 #include <gc/gc.h>
@@ -341,7 +343,9 @@ static LispObject *builtin_terminal_echo(LispObject *args, Environment *env)
     const char *text = LISP_STR_VAL(text_obj);
     size_t len = strlen(text);
 
-    /* Use callback if registered (handles scroll region positioning) */
+    /* Use the callback if registered: it stages the bytes in the output
+     * seam (the transcript's system stream), which the runtime's commit
+     * pass writes to the terminal's scrollback. */
     if (echo_callback) {
         echo_callback(text, len);
     } else {
@@ -388,18 +392,18 @@ static LispObject *builtin_telnet_send(LispObject *args, Environment *env)
 /* Interned termcap symbols for pointer comparison */
 static LispObject *sym_tc_cols = NULL;
 static LispObject *sym_tc_rows = NULL;
-static LispObject *sym_tc_type = NULL;
-static LispObject *sym_tc_encoding = NULL;
-static LispObject *sym_tc_color_level = NULL;
+static LispObject *sym_tc_width_model = NULL;
 static LispObject *sym_tc_truecolor = NULL;
-static LispObject *sym_tc_256color = NULL;
-static LispObject *sym_tc_unicode = NULL;
-static LispObject *sym_tc_describe = NULL;
 static LispObject *sym_tc_reset = NULL;
 static LispObject *sym_tc_fg_color = NULL;
 static LispObject *sym_tc_bg_color = NULL;
 
-/* Builtin: termcap - Unified terminal capability query */
+/* Builtin: termcap - Unified terminal capability query
+ *
+ * Every answer comes from boba, which owns the terminal: the size from the
+ * window-size messages, the color tier from its capability profile, the
+ * width model from the one it pinned at startup. mudlark keeps no second
+ * detector to disagree with it. */
 static LispObject *builtin_termcap(LispObject *args, Environment *env)
 {
     (void)env;
@@ -422,58 +426,43 @@ static LispObject *builtin_termcap(LispObject *args, Environment *env)
         return lisp_make_integer(g_term_cols);
     if (key == sym_tc_rows)
         return lisp_make_integer(g_term_rows);
-    if (key == sym_tc_type) {
-        const char *t = termcaps_get_term_type();
-        return lisp_make_string(t ? t : "");
-    }
-    if (key == sym_tc_encoding) {
-        const char *e = termcaps_get_encoding();
-        return lisp_make_string(e ? e : "ASCII");
-    }
-    if (key == sym_tc_color_level)
-        return lisp_make_integer(termcaps_get_color_level());
+    if (key == sym_tc_width_model)
+        return lisp_make_string(tui_width_model_name(tui_width_model()));
     if (key == sym_tc_truecolor)
-        return termcaps_supports_truecolor() ? LISP_TRUE : NIL;
-    if (key == sym_tc_256color)
-        return termcaps_supports_256color() ? LISP_TRUE : NIL;
-    if (key == sym_tc_unicode)
-        return termcaps_supports_unicode() ? LISP_TRUE : NIL;
-    if (key == sym_tc_describe) {
-        const char *d = termcaps_describe();
-        return lisp_make_string(d ? d : "");
-    }
-    if (key == sym_tc_reset) {
-        const char *s = termcaps_format_reset();
-        return lisp_make_string(s ? s : "");
-    }
+        return ui_truecolor() ? LISP_TRUE : NIL;
+    if (key == sym_tc_reset)
+        return lisp_make_string(ui_reset_sgr());
 
-    /* Color queries with RGB args */
+    /* Color queries: r g b [slot]. The slot is the ANSI16 fallback used
+     * when the terminal is not truecolor; omitted = no color below
+     * truecolor. */
     if (key == sym_tc_fg_color || key == sym_tc_bg_color) {
-        if (args == NIL)
-            return lisp_make_error("termcap: fg-color/bg-color need r g b");
-        LispObject *r_obj = lisp_car(args);
-        args = lisp_cdr(args);
-        if (args == NIL)
-            return lisp_make_error("termcap: fg-color/bg-color need r g b");
-        LispObject *g_obj = lisp_car(args);
-        args = lisp_cdr(args);
-        if (args == NIL)
-            return lisp_make_error("termcap: fg-color/bg-color need r g b");
-        LispObject *b_obj = lisp_car(args);
+        UiColor color = { 0, 0, 0, -1 };
+        LispObject *parts[3];
+        for (int i = 0; i < 3; i++) {
+            if (args == NIL)
+                return lisp_make_error("termcap: fg-color/bg-color need r g b");
+            parts[i] = lisp_car(args);
+            args = lisp_cdr(args);
+            if (LISP_TYPE(parts[i]) != LISP_INTEGER)
+                return lisp_make_error("termcap: color args must be integers");
+        }
+        color.r = (uint8_t)LISP_INT_VAL(parts[0]);
+        color.g = (uint8_t)LISP_INT_VAL(parts[1]);
+        color.b = (uint8_t)LISP_INT_VAL(parts[2]);
 
-        if (LISP_TYPE(r_obj) != LISP_INTEGER ||
-            LISP_TYPE(g_obj) != LISP_INTEGER ||
-            LISP_TYPE(b_obj) != LISP_INTEGER) {
-            return lisp_make_error("termcap: color args must be integers");
+        if (args != NIL) {
+            LispObject *slot_obj = lisp_car(args);
+            if (LISP_TYPE(slot_obj) != LISP_INTEGER)
+                return lisp_make_error("termcap: color slot must be an integer");
+            long slot = (long)LISP_INT_VAL(slot_obj);
+            if (slot < 0 || slot > 15)
+                return lisp_make_error("termcap: color slot must be 0-15");
+            color.slot = (int8_t)slot;
         }
 
-        int r = (int)LISP_INT_VAL(r_obj);
-        int g = (int)LISP_INT_VAL(g_obj);
-        int b = (int)LISP_INT_VAL(b_obj);
-
-        const char *seq = (key == sym_tc_fg_color)
-                              ? termcaps_format_fg_color(r, g, b)
-                              : termcaps_format_bg_color(r, g, b);
+        const char *seq = (key == sym_tc_fg_color) ? ui_fg_sgr(color)
+                                                   : ui_bg_sgr(color);
         return lisp_make_string(seq ? seq : "");
     }
 
@@ -650,8 +639,9 @@ static LispObject *builtin_set_log_filter(LispObject *args, Environment *env)
 }
 
 /* Builtin: set-status - Set the right-aligned status string embedded in
- * the top divider above the textinput. (set-status) or (set-status "")
- * clears it. */
+ * the divider above the textinput. (set-status) or (set-status "") clears
+ * it. Each change wakes the event loop, so a status set while the loop is
+ * idle is painted instead of waiting for the next keystroke. */
 static LispObject *builtin_set_status(LispObject *args, Environment *env)
 {
     (void)env;
@@ -662,12 +652,16 @@ static LispObject *builtin_set_status(LispObject *args, Environment *env)
 
     if (args == NIL) {
         telnet_app_set_status_text(registered_status_sink, NULL);
+        if (registered_runtime)
+            tui_runtime_wakeup(registered_runtime);
         return NIL;
     }
 
     LispObject *text_obj = lisp_car(args);
     if (text_obj == NIL) {
         telnet_app_set_status_text(registered_status_sink, NULL);
+        if (registered_runtime)
+            tui_runtime_wakeup(registered_runtime);
         return NIL;
     }
     if (LISP_TYPE(text_obj) != LISP_STRING) {
@@ -675,6 +669,8 @@ static LispObject *builtin_set_status(LispObject *args, Environment *env)
     }
 
     telnet_app_set_status_text(registered_status_sink, LISP_STR_VAL(text_obj));
+    if (registered_runtime)
+        tui_runtime_wakeup(registered_runtime);
     return NIL;
 }
 
@@ -1436,16 +1432,11 @@ static void register_builtins(Environment *env)
         "Usage:\n"
         "- `(termcap 'cols)` - terminal width\n"
         "- `(termcap 'rows)` - terminal height\n"
-        "- `(termcap 'type)` - terminal type string (e.g. \"xterm-256color\")\n"
-        "- `(termcap 'encoding)` - character encoding (e.g. \"UTF-8\")\n"
-        "- `(termcap 'color-level)` - color support level (0-3)\n"
-        "- `(termcap 'truecolor?)` - t if truecolor is supported\n"
-        "- `(termcap '256color?)` - t if 256 colors supported\n"
-        "- `(termcap 'unicode?)` - t if unicode is supported\n"
-        "- `(termcap 'describe)` - human-readable capability summary\n"
+        "- `(termcap 'width-model)` - cell-width model boba pinned (\"grid\", \"wcwidth\", \"uts51\")\n"
+        "- `(termcap 'truecolor?)` - t if the terminal can show 24-bit color\n"
         "- `(termcap 'reset)` - SGR reset escape sequence\n"
-        "- `(termcap 'fg-color r g b)` - foreground color escape sequence\n"
-        "- `(termcap 'bg-color r g b)` - background color escape sequence");
+        "- `(termcap 'fg-color r g b [slot])` - foreground color escape sequence\n"
+        "- `(termcap 'bg-color r g b [slot])` - background color escape sequence");
     REG("termcap", builtin_termcap);
 
     /* System file loader (uses standard search paths) */
@@ -1454,13 +1445,8 @@ static void register_builtins(Environment *env)
     /* Intern termcap symbols for pointer comparison */
     sym_tc_cols = lisp_intern("cols");
     sym_tc_rows = lisp_intern("rows");
-    sym_tc_type = lisp_intern("type");
-    sym_tc_encoding = lisp_intern("encoding");
-    sym_tc_color_level = lisp_intern("color-level");
+    sym_tc_width_model = lisp_intern("width-model");
     sym_tc_truecolor = lisp_intern("truecolor?");
-    sym_tc_256color = lisp_intern("256color?");
-    sym_tc_unicode = lisp_intern("unicode?");
-    sym_tc_describe = lisp_intern("describe");
     sym_tc_reset = lisp_intern("reset");
     sym_tc_fg_color = lisp_intern("fg-color");
     sym_tc_bg_color = lisp_intern("bg-color");
@@ -2047,11 +2033,14 @@ const char *lisp_x_get_prompt(void)
     return "> ";
 }
 
-/* Extract RGB from a Lisp '(r g b) defvar */
-int lisp_x_get_color(const char *var_name, int *r, int *g, int *b)
+/* Extract a color role from a Lisp '(r g b [slot]) defvar.
+ *
+ * The optional fourth element is the ANSI16 slot used below truecolor;
+ * omitted means the role has no color below truecolor. */
+int lisp_x_get_color(const char *var_name, UiColor *out)
 {
     Environment *env = get_current_env();
-    if (!env || !var_name || !r || !g || !b)
+    if (!env || !var_name || !out)
         return -1;
 
     LispObject *val = env_lookup(env, LISP_SYM_VAL(lisp_intern(var_name)));
@@ -2074,9 +2063,20 @@ int lisp_x_get_color(const char *var_name, int *r, int *g, int *b)
     if (!b_obj || LISP_TYPE(b_obj) != LISP_INTEGER)
         return -1;
 
-    *r = (int)LISP_INT_VAL(r_obj);
-    *g = (int)LISP_INT_VAL(g_obj);
-    *b = (int)LISP_INT_VAL(b_obj);
+    out->r = (uint8_t)LISP_INT_VAL(r_obj);
+    out->g = (uint8_t)LISP_INT_VAL(g_obj);
+    out->b = (uint8_t)LISP_INT_VAL(b_obj);
+    out->slot = -1;
+
+    rest = lisp_cdr(rest);
+    if (rest != NIL && LISP_TYPE(rest) == LISP_CONS) {
+        LispObject *slot_obj = lisp_car(rest);
+        if (slot_obj && LISP_TYPE(slot_obj) == LISP_INTEGER) {
+            long slot = (long)LISP_INT_VAL(slot_obj);
+            if (slot >= 0 && slot <= 15)
+                out->slot = (int8_t)slot;
+        }
+    }
     return 0;
 }
 

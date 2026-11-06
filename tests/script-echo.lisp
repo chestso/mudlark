@@ -18,10 +18,8 @@
    ((eq? capability 'fg-color)
     (format nil "[fg:~A,~A,~A]" (car args) (cadr args) (caddr args)))
    ((eq? capability 'reset) "[reset]")
-   ((eq? capability 'color-level) 4)
-   ((eq? capability 'unicode?) #t)
-   ((eq? capability 'type) "xterm-256color")
-   ((eq? capability 'encoding) "UTF-8")
+   ((eq? capability 'truecolor?) #t)
+   ((eq? capability 'width-model) "grid")
    (#t "")))
 
 ;; ============================================================================
@@ -155,5 +153,29 @@
     "Has section title")
   (assert-true (contains? out "xterm-256color")
     "Has section detail"))
+
+;; ============================================================================
+;; Test: color->fg passes the optional ANSI16 slot through to termcap
+;; ============================================================================
+;; The slot is the fourth element of an (R G B SLOT) color list: it rides
+;; along to termcap as a fourth argument, which picks the fallback spelling
+;; for a terminal without truecolor. Redefine the mock (this is the last
+;; test, so nothing below depends on the old one) to record its arguments.
+(defvar *tc-args* '())
+(defun termcap (capability &rest args)
+  (set! *tc-args* args)
+  (cond
+    ((eq? capability 'fg-color) "")
+    ((eq? capability 'reset) "")
+    ((eq? capability 'truecolor?) #t)
+    ((eq? capability 'width-model) "grid")
+    (#t "")))
+
+(color->fg '(139 233 253 14))
+(assert-equal 4 (length *tc-args*) "color->fg passes the slot as a fourth argument")
+(assert-equal 14 (car (cdr (cdr (cdr *tc-args*)))) "the slot value reaches termcap")
+
+(color->fg '(139 233 253))
+(assert-equal 3 (length *tc-args*) "a plain RGB list passes three arguments")
 
 (print "All script-echo tests passed!")

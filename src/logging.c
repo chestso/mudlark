@@ -1,7 +1,6 @@
 /* Logging system implementation for mudlark */
 
 #include "logging.h"
-#include "../include/terminal_caps.h"
 #include "colors.h"
 #include "lisp_extension.h"
 #include <stdarg.h>
@@ -143,41 +142,29 @@ void mudlark_log(LogLevel level, const char *tag, const char *fmt, ...)
 
     /* Send to viewport only if filter allows */
     if (show_in_viewport && g_echo_fn) {
-        int cr, cg, cb;
+        UiColor role;
         const char *color;
-        const char *reset = termcaps_format_reset();
+        const char *reset = ui_reset_sgr();
         switch (level) {
         case LOG_DEBUG:
-            if (lisp_x_get_color("*color-log-debug*", &cr, &cg, &cb) < 0) {
-                cr = COLOR_LOG_DEBUG_R;
-                cg = COLOR_LOG_DEBUG_G;
-                cb = COLOR_LOG_DEBUG_B;
-            }
-            color = termcaps_format_fg_color(cr, cg, cb);
+            if (lisp_x_get_color("*color-log-debug*", &role) < 0)
+                role = UI_COLOR_LOG_DEBUG;
+            color = ui_fg_sgr(role);
             break;
         case LOG_INFO:
-            if (lisp_x_get_color("*color-log-info*", &cr, &cg, &cb) < 0) {
-                cr = COLOR_LOG_INFO_R;
-                cg = COLOR_LOG_INFO_G;
-                cb = COLOR_LOG_INFO_B;
-            }
-            color = termcaps_format_fg_color(cr, cg, cb);
+            if (lisp_x_get_color("*color-log-info*", &role) < 0)
+                role = UI_COLOR_LOG_INFO;
+            color = ui_fg_sgr(role);
             break;
         case LOG_WARN:
-            if (lisp_x_get_color("*color-log-warn*", &cr, &cg, &cb) < 0) {
-                cr = COLOR_LOG_WARN_R;
-                cg = COLOR_LOG_WARN_G;
-                cb = COLOR_LOG_WARN_B;
-            }
-            color = termcaps_format_fg_color(cr, cg, cb);
+            if (lisp_x_get_color("*color-log-warn*", &role) < 0)
+                role = UI_COLOR_LOG_WARN;
+            color = ui_fg_sgr(role);
             break;
         case LOG_ERROR:
-            if (lisp_x_get_color("*color-log-error*", &cr, &cg, &cb) < 0) {
-                cr = COLOR_LOG_ERROR_R;
-                cg = COLOR_LOG_ERROR_G;
-                cb = COLOR_LOG_ERROR_B;
-            }
-            color = termcaps_format_fg_color(cr, cg, cb);
+            if (lisp_x_get_color("*color-log-error*", &role) < 0)
+                role = UI_COLOR_LOG_ERROR;
+            color = ui_fg_sgr(role);
             break;
         default:
             color = "";

@@ -1,45 +1,34 @@
 # TODO
 
-## Terminal-probed Unicode width detection
+## Unicode width
 
-The UTF-8 continuation byte fix handles the immediate breakage (box-drawing chars counted as 3 columns instead of 1), but doesn't solve the general problem: knowing how many cells an arbitrary Unicode codepoint or sequence occupies in the user's terminal. This depends on the terminal emulator, its font, and its Unicode version support.
+Width is boba's fact, not mudlark's: the runtime pins a cell-width model
+(`TUI_WIDTH_MODEL_GRID`, `WCWIDTH` or `UTS51`) from the startup environment
+before the first byte is emitted, and every measurement goes through it. Read
+it back with `(termcap 'width-model)`.
 
-### Problem space
+The interesting residue is the model that has to be guessed rather than asked
+for: a terminal reached without its environment (kitty over ssh without the
+ssh kitten) measures with the grid rule and may land a cell off on a selector
+cluster. boba's `TuiRuntimeConfig.width_model` is the escape hatch; mudlark
+does not set it, so an override would be a `--width-model` flag here.
 
-- **CJK characters**: 2 cells wide. `wcwidth()` handles these but may be outdated.
-- **Emoji**: Usually 2 cells, but varies by terminal and presentation selector (U+FE0F vs U+FE0E).
-- **ZWJ sequences** (e.g., family emoji): Could render as 1 composed glyph (2 cells) or as N separate emoji (2xN cells). Entirely terminal-dependent.
-- **Ambiguous-width characters**: Some terminals render them as 1 cell, others as 2 (CJK locale dependent).
+What mudlark no longer does — and should not start doing — is its own probing
+or `wcwidth()` fallback: a second measurement rule can only disagree with the
+one that decided where the committed scrollback's columns land.
 
-### Approach: cursor position probing at startup
+## Inline frame: very tall input
 
-The only reliable way to know what a terminal does is to ask it:
+A frame taller than the terminal (a pasted multi-line input, or a narrow
+window) is outside inline mode's model: boba's inline render moves the cursor
+up over the previous frame, and once the frame itself has scrolled there is
+nothing stable to move up over. nevermore has the same shape and answers it by
+capping its live region.
 
-1. **At startup** (in `terminal_caps.c` alongside existing capability detection):
-   - Save cursor position
-   - Move cursor to column 1 of an off-screen or cleared line
-   - Write a test character/sequence
-   - Query cursor position with `ESC[6n` (Device Status Report)
-   - Terminal responds with `ESC[<row>;<col>R`
-   - `display_width = col - 1`
-   - Restore cursor / erase the test output
-
-2. **What to probe** -- a small representative set:
-   - A CJK character (e.g., U+4E16) -- expect 2
-   - An emoji without ZWJ (e.g., U+1F600) -- expect 2, but some terminals show 1
-   - A ZWJ family sequence -- 2 if composed, 8 if decomposed
-   - An ambiguous-width char (e.g., U+00A7) -- 1 or 2 depending on locale settings
-
-3. **Cache results** in a session-level struct (extend `TerminalCaps` or similar). Use probed results to parameterize width calculation in the viewport.
-
-4. **Fallback**: If DSR response times out (pipe, non-interactive, screen), fall back to `wcwidth()` or a static Unicode table.
-
-### Implementation considerations
-
-- The DSR query is async -- write `ESC[6n`, then read the response from stdin. This naturally fits into the existing terminal detection phase before the main event loop starts.
-- Probing adds ~10-50ms of startup latency (one round-trip per probe).
-- Some terminals (kitty) support extended width query protocols that could be detected via existing `terminal_caps.c` DA2/XTVERSION responses.
-- The viewport's `calc_display_width()` would need to consult a width lookup rather than the current byte-level check. This could be a function pointer or a lookup table populated from probe results + `wcwidth()` baseline.
+boba 0.7.1 has no textinput height setter (the field exists but relative mode
+does not consult it), so capping means either a boba API or a mudlark-side
+row cap in `telnet_app_view`. Not done: it needs a scroll window inside the
+input to stay useful, which is a textinput feature.
 
 ## Scripting architecture
 

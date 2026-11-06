@@ -25,7 +25,6 @@
 #endif
 
 #include "../include/telnet.h"
-#include "../include/terminal_caps.h"
 #include "colors.h"
 #include "commands.h"
 #include "lisp_extension.h"
@@ -34,6 +33,7 @@
 #include <boba/ansi_sequences.h>
 #include <boba/cmd.h>
 #include <boba/runtime.h>
+#include <boba/terminal_profile.h>
 #include <ditty/lisp.h>
 
 #include "mudlark_version.h"
@@ -74,14 +74,18 @@ static void sig_write(const char *s, size_t len)
     (void)n;
 }
 
-/* Async-signal-safe: only tcsetattr/write/signal/raise, message pre-formatted. */
+/* Async-signal-safe: only tcsetattr/write/signal/raise, message pre-formatted.
+ * Inline mode has no alt screen to leave, so the restore is the mode set the
+ * app turned on: show the cursor, pop the Kitty keyboard flags, disable
+ * bracketed paste, reset SGR, and end the line so the shell prompt does not
+ * land on the frame's last row. */
 static void crash_handler(int sig)
 {
     if (g_have_saved_termios)
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_saved_termios);
     if (g_tui_started) {
-        static const char restore[] =
-            ANSI_EXIT_ALT_SCREEN ANSI_SHOW_CURSOR ANSI_DISABLE_MOUSE SGR_RESET;
+        static const char restore[] = ANSI_SHOW_CURSOR ANSI_DISABLE_KITTY_KBD
+            ANSI_DISABLE_BRACKETED_PASTE SGR_RESET "\r\n";
         sig_write(restore, sizeof(restore) - 1);
     }
     if (g_crash_msg_len > 0)
@@ -107,6 +111,7 @@ static void install_crash_handlers(void)
 static Telnet *g_telnet = NULL;
 static TelnetAppModel *g_app = NULL;
 static TuiRuntime *g_runtime = NULL;
+static TuiTranscript *g_transcript = NULL;
 static int g_connected = 0;
 static int g_quit_requested = 0;
 static int g_server_echo = 0;
@@ -148,21 +153,17 @@ static void update_divider_color(void)
 {
     if (!g_app)
         return;
-    int r, g, b;
     if (g_connected) {
-        if (lisp_x_get_color("*color-divider-connected*", &r, &g, &b) < 0) {
-            r = COLOR_DIVIDER_CONNECTED_R;
-            g = COLOR_DIVIDER_CONNECTED_G;
-            b = COLOR_DIVIDER_CONNECTED_B;
-        }
+        UiColor color;
+        if (lisp_x_get_color("*color-divider-connected*", &color) < 0)
+            color = UI_COLOR_DIVIDER_CONNECTED;
+        telnet_app_set_border_color(g_app, color);
     } else {
-        if (lisp_x_get_color("*color-divider-disconnected*", &r, &g, &b) < 0) {
-            r = COLOR_DIVIDER_DISCONNECTED_R;
-            g = COLOR_DIVIDER_DISCONNECTED_G;
-            b = COLOR_DIVIDER_DISCONNECTED_B;
-        }
+        UiColor color;
+        if (lisp_x_get_color("*color-divider-disconnected*", &color) < 0)
+            color = UI_COLOR_DIVIDER_DISCONNECTED;
+        telnet_app_set_border_color(g_app, color);
     }
-    telnet_app_set_border_color(g_app, (uint8_t)r, (uint8_t)g, (uint8_t)b);
 }
 
 /* Cleanup function called at exit.
@@ -188,8 +189,14 @@ static void cleanup(void)
         g_runtime = NULL;
     }
 
+    /* The transcript outlives the runtime's use of it: boba borrows it,
+     * main.c owns it. */
+    if (g_transcript) {
+        tui_transcript_free(g_transcript);
+        g_transcript = NULL;
+    }
+
     lisp_x_cleanup();
-    termcaps_cleanup();
 }
 
 /* Print usage information */
@@ -306,6 +313,11 @@ static void process_line(const char *line)
         process_command(line, g_telnet, &g_connected, &g_quit_requested,
                         g_term_cols, g_term_rows, echo_to_viewport);
         if (g_quit_requested && g_runtime) {
+            /* Switch the frame to its empty shape first: the flush that
+             * follows this update erases the divider and the input row in
+             * place, so the shell prompt lands on a clean line and the
+             * transcript stays in the scrollback. */
+            telnet_app_set_quitting(g_app, 1);
             tui_runtime_schedule(g_runtime, tui_cmd_quit());
         }
         if (g_connected != was_connected) {
@@ -323,15 +335,12 @@ static void process_line(const char *line)
             /* Password mode: don't echo the typed text, just the newline */
             echo_to_viewport("\n", 1);
         } else {
-            /* Echo user input to viewport in configurable color */
-            int ur, ug, ub;
-            if (lisp_x_get_color("*color-user-input*", &ur, &ug, &ub) < 0) {
-                ur = COLOR_USER_INPUT_R;
-                ug = COLOR_USER_INPUT_G;
-                ub = COLOR_USER_INPUT_B;
-            }
-            const char *echo_color = termcaps_format_fg_color(ur, ug, ub);
-            const char *reset = termcaps_format_reset();
+            /* Echo user input to the scrollback in the configured role */
+            UiColor color;
+            if (lisp_x_get_color("*color-user-input*", &color) < 0)
+                color = UI_COLOR_USER_INPUT;
+            const char *echo_color = ui_fg_sgr(color);
+            const char *reset = ui_reset_sgr();
             echo_to_viewport(echo_color, strlen(echo_color));
             echo_to_viewport(line, strlen(line));
             echo_to_viewport(reset, strlen(reset));
@@ -355,14 +364,16 @@ static void process_line(const char *line)
     telnet_app_set_prompt(g_app, prompt);
 }
 
-/* Echo callback for terminal-echo builtin */
+/* Echo callback for terminal-echo builtin (and the log, command and
+ * connect paths). The name predates inline mode and is kept so call sites
+ * do not move; the bytes now stage in the transcript's system stream and
+ * this flush's commit pass writes them to the terminal's scrollback. */
 static void echo_to_viewport(const char *text, size_t len)
 {
     if (g_app) {
-        /* Append to viewport */
         telnet_app_echo(g_app, text, len);
 
-        /* Re-render full screen */
+        /* One paint: commit the staged bytes and repaint the frame. */
         tui_runtime_flush(g_runtime);
     }
 }
@@ -469,7 +480,7 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
         const char *filtered = lisp_x_call_telnet_input_transform_hook(
             recv_buffer, received, &filtered_len);
 
-        /* Append filtered data to viewport */
+        /* Echo through the output seam (the flush is once per drain) */
         telnet_app_echo(g_app, filtered, filtered_len);
     }
 
@@ -578,11 +589,6 @@ int main(int argc, char *argv[])
     /* Register cleanup */
     atexit(cleanup);
 
-    /* Detect terminal capabilities */
-    if (termcaps_init() < 0) {
-        mudlark_log(LOG_WARN, NULL, "Could not detect terminal capabilities");
-    }
-
     /* Initialize Lisp */
     if (lisp_x_init() < 0) {
         fprintf(stderr, "Failed to initialize Lisp interpreter\n");
@@ -599,16 +605,25 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Create TelnetApp via runtime (composes viewport + textinput) */
+    /* Create the output seam: system stream only (MUD output is
+     * already-rendered bytes). The runtime borrows it; main.c owns it. */
+    g_transcript = telnet_app_transcript_create();
+    if (!g_transcript) {
+        fprintf(stderr, "Failed to create transcript\n");
+        return 1;
+    }
+
+    /* Create TelnetApp via runtime (the divider + input frame) */
     TelnetAppConfig app_config = {
         .terminal_width = g_term_cols,
         .terminal_height = g_term_rows,
         .prompt = lisp_x_get_prompt(),
         .show_prompt = 1,
         .history_size = lisp_x_get_input_history_size(),
+        .transcript = g_transcript,
     };
-    /* alt-screen, mouse mode, and Kitty keyboard enhancements are now
-     * declared on TuiView (see telnet_app_view) — no longer
+    /* Render mode (inline), bracketed paste and Kitty keyboard
+     * enhancements are declared on TuiView (see telnet_app_view) — not
      * runtime-config fields. */
     TuiRuntimeConfig runtime_config = {
         .raw_mode = 1,
@@ -631,6 +646,11 @@ int main(int argc, char *argv[])
     }
     g_app = (TelnetAppModel *)tui_runtime_model(g_runtime);
 
+    /* Attach the transcript: its commit pass then runs at the top of
+     * every flush, so all units staged in one drain reach the scrollback
+     * through exactly one write. */
+    tui_runtime_set_transcript(g_runtime, g_transcript);
+
     /* Register runtime with Lisp extension for terminal control commands */
     lisp_x_register_runtime(g_runtime);
 
@@ -640,7 +660,7 @@ int main(int argc, char *argv[])
     /* Register TelnetApp model with Lisp extension as the set-status sink */
     lisp_x_register_status_sink(g_app);
 
-    /* Now that viewport is available, route log messages there */
+    /* Now that the output seam exists, route log messages through it */
     mudlark_log_set_echo(echo_to_viewport);
 
     /* From here the TUI owns the screen; redirect stderr to the log file so raw
@@ -651,13 +671,22 @@ int main(int argc, char *argv[])
         freopen(g_log_path, "w", stderr);
 #endif
 
-    /* Enter alt screen before loading scripts so their output
-     * (script-echo banners, log lines) goes to the alt buffer,
-     * not the main screen that gets restored on exit */
+    /* Enter the terminal mode before loading scripts so their output
+     * (script-echo banners, log lines) can be committed: in inline mode the
+     * runtime holds no screen of its own, it just starts tracking the
+     * terminal. The flush below is what seeds the capability profile —
+     * every color formatted before it would resolve at the low tier. */
     tui_runtime_start(g_runtime);
+    tui_runtime_flush(g_runtime);
 #ifndef _WIN32
     g_tui_started = 1;
 #endif
+
+    /* The color tier, from boba's profile: `truecolor` is
+     * environment-derived and final from probe start, so one seed per
+     * process describes the whole session. Everything formatted below
+     * (the banner, the divider, echoed input, log lines) reads it. */
+    ui_set_truecolor(tui_runtime_terminal_profile(g_runtime)->truecolor);
 
     /* Create default session and load init.lisp now that TUI is ready
      * (needs terminal-echo, termcap, etc.) */
@@ -677,7 +706,7 @@ int main(int argc, char *argv[])
     lisp_x_register_telnet(g_telnet);
 
     /* Load additional scripts if specified (after init.lisp so script-echo etc.
-     * are available, and after viewport so logs are visible) */
+     * are available, and once the frame is live so logs are visible) */
     for (int i = 0; i < load_file_count; i++) {
         if (lisp_x_load_file(load_files[i]) < 0) {
             mudlark_log(LOG_ERROR, "lisp", "Failed to load: %s", load_files[i]);
@@ -707,9 +736,13 @@ int main(int argc, char *argv[])
     /* Run main event loop */
     int result = run_event_loop();
 
+    /* tui_runtime_stop() (inside the loop's teardown) has moved the cursor
+     * below the erased frame and restored the terminal modes, so the
+     * goodbye line prints on a fresh row. */
+    printf("Goodbye.\n");
+
     /* Cleanup handled by atexit */
     free(load_files);
-    printf("\r\nGoodbye.\r\n");
 
     return result;
 }
