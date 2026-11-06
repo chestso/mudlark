@@ -86,17 +86,19 @@ PKG_PROG_PKG_CONFIG
 dnl Check for ditty
 dnl The minimum is the release mudlark is built and tested against; the CI
 dnl dependency pin in .github/workflows/windows.yml tracks the same version
-dnl (bump both together).
-PKG_CHECK_MODULES([DITTY], [ditty >= 0.7.2])
+dnl (bump both together). 0.7.3 is the floor: 0.7.2 reaches into
+dnl TuiTextInput's fields to save the history ring, and boba 0.8 made that
+dnl model opaque, so 0.7.2 no longer compiles against a current boba.
+PKG_CHECK_MODULES([DITTY], [ditty >= 0.7.3])
 
 dnl Check for boba
 dnl boba's runtime API is not stable across releases (the I/O-source seam,
 dnl TuiColor carriers, the textinput geometry reset), so the floor is the
 dnl release this tree compiles against — again matched by the CI pin.
-dnl 0.8.1 is the floor, not 0.8.0: in 0.8.0 CLIP's one horizontal window
-dnl took its right edge from the cursor line's length, so a multi-line input
-dnl clipped every longer row to the length of the line the cursor was on.
-PKG_CHECK_MODULES([BOBA], [boba >= 0.8.1])
+dnl 0.9.0 is the floor: 0.8.1 fixes CLIP's one horizontal window, and 0.9.0
+dnl is the release ditty 0.7.3 builds against, so the two floors move
+dnl together.
+PKG_CHECK_MODULES([BOBA], [boba >= 0.9.0])
 
 dnl Platform-specific socket libraries
 case "$host_os" in
