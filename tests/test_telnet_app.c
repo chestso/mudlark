@@ -4,6 +4,7 @@
  * - Mouse scroll wheel handling in telnet_app_update()
  * - PageUp/PageDown key handling in telnet_app_update()
  * - WINDOW_SIZE message handling in telnet_app_update()
+ * - Layout: the dividers bracket whatever the textinput paints
  * - telnet_app_component() interface for runtime integration
  */
 
@@ -213,6 +214,110 @@ static void test_window_size_small(void)
 
     if (result.cmd)
         tui_cmd_free(result.cmd);
+    test_app_free(app);
+}
+
+/* ========================================================================
+ * Layout tests: the dividers bracket whatever the input paints
+ * ======================================================================== */
+
+/* The input is bottom-anchored: its rows sit between the top divider and the
+ * bottom border, and the viewport takes everything above. boba 0.8's
+ * textinput is told its box with one geometry (FIXED rows, AT_ROW placement),
+ * so an app that reads the painted height back keeps the dividers tight. */
+static void test_layout_brackets_a_multiline_input(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "one\ntwo\nthree");
+    telnet_app_set_terminal_size(app, 80, 24);
+
+    assert(tui_textinput_visible_rows(ti) == 3);
+
+    TuiTextInputGeometry g = tui_textinput_geometry(ti);
+    assert(g.sizing == TUI_TEXTINPUT_FIXED);
+    assert(g.place == TUI_TEXTINPUT_AT_ROW);
+    assert(g.width == 80);
+    assert(g.rows == 21); /* height - 3: viewport, top divider, bottom border */
+    assert(g.row == 21);  /* 24 - 3 content rows */
+    assert(app->bottom_border_row == 24);
+    assert(app->top_border_row == 20); /* directly above the input */
+
+    test_app_free(app);
+}
+
+/* A long input scrolls inside its box instead of running over the bottom
+ * border: the box stops at height - 3 and the frame still ends on the last
+ * row of the screen. */
+static void test_layout_caps_a_tall_input(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    char text[512];
+    size_t off = 0;
+    for (int i = 0; i < 40; i++)
+        off += (size_t)snprintf(text + off, sizeof(text) - off, "line%d\n", i);
+    tui_textinput_set_text(ti, text);
+    telnet_app_set_terminal_size(app, 80, 24);
+
+    assert(tui_textinput_total_rows(ti) == 41);
+
+    TuiTextInputGeometry g = tui_textinput_geometry(ti);
+    int visible = tui_textinput_visible_rows(ti);
+    assert(visible == 21);
+    assert(app->top_border_row == 2);
+    assert(app->bottom_border_row == 24);
+
+    /* No row of the frame may land past the screen: the box is the last
+     * thing above the bottom border. */
+    assert(g.row + visible - 1 <= app->terminal_height - 1);
+
+    test_app_free(app);
+}
+
+/* CLIP is the input's mode, so a command wider than the screen scrolls under
+ * boba's horizontal window rather than pushing the dividers up a row. */
+static void test_long_line_does_not_grow_the_input(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    char text[201];
+    memset(text, 'x', sizeof(text) - 1);
+    text[sizeof(text) - 1] = '\0';
+    tui_textinput_set_text(ti, text);
+    telnet_app_set_terminal_size(app, 80, 24);
+
+    assert(tui_textinput_total_rows(ti) == 1);
+    assert(tui_textinput_visible_rows(ti) == 1);
+    assert(app->top_border_row == 22);
+
+    test_app_free(app);
+}
+
+/* One CLIP window is shared by every row and budgeted against the widest
+ * prompt, never against the length of the line the cursor happens to be on.
+ * boba 0.8.0 budgeted it from the cursor's line, so "alpha\nb" with the
+ * cursor on "b" painted "> a" (a one-column window). Fixed in 0.8.1, which
+ * is the floor configure.ac asks for; this test is the regression. */
+static void test_multiline_clip_keeps_longer_rows_whole(void)
+{
+    TelnetAppModel *app = create_test_app();
+    TuiTextInput *ti = telnet_app_get_textinput(app);
+
+    tui_textinput_set_text(ti, "alpha\nb");
+    telnet_app_set_terminal_size(app, 80, 24);
+    tui_textinput_set_cursor(ti, 7); /* end of the short line */
+
+    DynamicBuffer *out = dynamic_buffer_create(4096);
+    assert(out != NULL);
+    g_comp->view((TuiModel *)app, out);
+
+    assert(strstr(dynamic_buffer_data(out), "alpha") != NULL);
+
+    dynamic_buffer_destroy(out);
     test_app_free(app);
 }
 
@@ -715,6 +820,12 @@ int main(void)
     /* WINDOW_SIZE tests */
     RUN_TEST(test_window_size_updates_dimensions);
     RUN_TEST(test_window_size_small);
+
+    /* Layout tests */
+    RUN_TEST(test_layout_brackets_a_multiline_input);
+    RUN_TEST(test_layout_caps_a_tall_input);
+    RUN_TEST(test_long_line_does_not_grow_the_input);
+    RUN_TEST(test_multiline_clip_keeps_longer_rows_whole);
 
     /* Border color tier tests */
     RUN_TEST(test_border_color_uses_terminal_tier);

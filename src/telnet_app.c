@@ -42,7 +42,16 @@ static TuiInitResult telnet_app_init(void *cfg)
         return tui_init_result_none(NULL);
     }
 
-    /* Create textinput child (user input) with multiline support */
+    /* Create textinput child (user input) with multiline support.
+     *
+     * CLIP (boba's default), not WRAP: a command line is one visual row in
+     * nearly every session, and a line wider than the screen scrolls under
+     * boba's one horizontal window the way readline does, rather than pushing
+     * the dividers a row further up. CLIP's window is shared by every row and
+     * budgeted against the widest prompt, so a multi-line input whose cursor
+     * sits on a short line no longer clips its longer rows to that line's
+     * length — in boba 0.8.0 "alpha\nb" with the cursor on "b" painted
+     * "> a" — which is why the version floor in configure.ac is 0.8.1. */
     TuiTextInputConfig textinput_cfg = { .multiline = 1 };
     app->textinput = tui_textinput_create(&textinput_cfg);
     if (!app->textinput) {
@@ -121,8 +130,13 @@ static TuiUpdateResult telnet_app_update(TuiModel *model, TuiMsg msg)
     if (!app)
         return tui_update_result_none();
 
-    /* Handle window size message at app level */
+    /* Handle window size message at app level. The input is told first: boba
+     * 0.8's textinput consumes TUI_MSG_WINDOW_SIZE itself (it keeps the
+     * terminal size to clamp its own box, and re-lays-out a resize whether or
+     * not it is focused), and telnet_app_set_terminal_size() then measures
+     * the box the input will paint — against the size it was just given. */
     if (msg.type == TUI_MSG_WINDOW_SIZE) {
+        tui_textinput_update(app->textinput, msg);
         telnet_app_set_terminal_size(app, msg.data.size.width,
                                      msg.data.size.height);
         return tui_update_result_none();
@@ -332,6 +346,18 @@ void telnet_app_echo(TelnetAppModel *app, const char *text, size_t len)
     tui_viewport_append(app->viewport, text, len);
 }
 
+/* Rows the input may paint. The frame is laid out bottom-up — bottom border
+ * on the last row, the input above it, the top border above that, and the
+ * viewport above the top border with at least one row — so the input is
+ * capped at height - 3. boba's textinput paints at most its FIXED box and
+ * scrolls vertically inside it, which is what keeps a multi-line input from
+ * pushing the dividers (and the cursor) off the screen. */
+static int textinput_max_rows(int height)
+{
+    int max_rows = height - 3;
+    return max_rows < 1 ? 1 : max_rows;
+}
+
 /* Set terminal size */
 void telnet_app_set_terminal_size(TelnetAppModel *app, int width, int height)
 {
@@ -341,27 +367,43 @@ void telnet_app_set_terminal_size(TelnetAppModel *app, int width, int height)
     app->terminal_width = width;
     app->terminal_height = height;
 
-    int content_lines = tui_textinput_get_height(app->textinput);
+    if (!app->textinput || !app->viewport)
+        return;
+
+    /* Size and placement are one geometry in boba 0.8: the input owns a
+     * box of `max_rows` at `width` (FIXED), bottom-anchored on an absolute
+     * screen row (AT_ROW). The height of the frame is read back from what
+     * the input will actually paint — the natural height of the text, capped
+     * by the box — so the dividers bracket the input exactly and no row of
+     * the frame lands on the screen's last row but the bottom border. */
+    int max_rows = textinput_max_rows(height);
+    TuiTextInputGeometry geom = tui_textinput_geometry(app->textinput);
+    geom.sizing = TUI_TEXTINPUT_FIXED;
+    geom.rows = max_rows;
+    geom.width = width;
+    tui_textinput_set_geometry(app->textinput, &geom);
+
+    int total_lines = tui_textinput_total_rows(app->textinput);
+    int content_lines = total_lines < max_rows ? total_lines : max_rows;
+    if (content_lines < 1)
+        content_lines = 1;
 
     /* Layout, bottom-up: bottom border on the last row, textinput
      * content rows, top border, and finally the viewport. */
     app->bottom_border_row = height;
     int textinput_row = app->bottom_border_row - content_lines;
+    if (textinput_row < 1)
+        textinput_row = 1;
     app->top_border_row = textinput_row - 1;
 
     int viewport_h = app->top_border_row - 1;
     if (viewport_h < 1)
         viewport_h = 1;
 
-    if (app->viewport) {
-        tui_viewport_set_size(app->viewport, width, viewport_h);
-        tui_viewport_set_render_position(app->viewport, 1, 1);
-    }
+    tui_viewport_set_size(app->viewport, width, viewport_h);
+    tui_viewport_set_render_position(app->viewport, 1, 1);
 
-    if (app->textinput) {
-        tui_textinput_set_terminal_width(app->textinput, width);
-        tui_textinput_set_terminal_row(app->textinput, textinput_row);
-    }
+    tui_textinput_set_placement(app->textinput, textinput_row);
 }
 
 /* Get the textinput component */
