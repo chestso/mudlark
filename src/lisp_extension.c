@@ -38,6 +38,9 @@ static TuiRuntime *registered_runtime = NULL;
 /* Terminal echo callback */
 static TerminalEchoCallback echo_callback = NULL;
 
+/* After-send callback: fired when an asynchronous send went to the server */
+static LispAfterSendCallback after_send_callback = NULL;
+
 /* Pending telnet-send buffer: \0-separated strings flushed by event loop */
 static DynamicBuffer *pending_send_buf = NULL;
 static int pending_send_scheduled = 0;
@@ -1256,6 +1259,11 @@ static TuiMsg flush_pending_sends(void *data)
     }
     dynamic_buffer_clear(pending_send_buf);
     pending_send_scheduled = 0;
+    /* The line is on the wire: the app mirrors the "an answer is owed"
+     * state into the frame (the runtime flushes right after this
+     * command, so the frame is repainted with it). */
+    if (after_send_callback)
+        after_send_callback();
     return tui_msg_none();
 }
 
@@ -1271,6 +1279,8 @@ static TuiMsg send_input_callback(void *data)
             lisp_x_send_hook_result(result, s->telnet);
         }
     }
+    if (after_send_callback)
+        after_send_callback();
     return tui_msg_none();
 }
 
@@ -2194,6 +2204,12 @@ void lisp_x_register_echo_callback(TerminalEchoCallback callback)
 void lisp_x_register_runtime(TuiRuntime *runtime)
 {
     registered_runtime = runtime;
+}
+
+/* Register the after-send callback */
+void lisp_x_register_after_send_callback(LispAfterSendCallback callback)
+{
+    after_send_callback = callback;
 }
 
 /* Dispatch F-key press to Lisp fkey-hook */

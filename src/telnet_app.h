@@ -63,6 +63,11 @@ typedef struct TelnetAppModel
      * input row in place so the shell prompt lands on a clean line. */
     int quitting;
 
+    /* 1 = the server owes an answer: the frame keeps one row free above
+     * the divider, and the answer lands in it (see
+     * telnet_app_set_reply_pending). */
+    int reply_pending;
+
     /* Surfaced as TuiView.window_title each frame. Owned (strdup'd);
      * NULL = leave the window title alone. */
     char *window_title;
@@ -127,6 +132,17 @@ void telnet_app_set_window_title(TelnetAppModel *app, const char *title);
 /* Switch the frame to its quitting shape (empty, cursor hidden). The next
  * flush erases the frame in place; the scrollback above is untouched. */
 void telnet_app_set_quitting(TelnetAppModel *app, int quitting);
+
+/* Mark the server as owing an answer (1) or not (0).
+ *
+ * While an answer is pending the frame keeps one row free above the
+ * divider: the answer lands in that row, so the input line does not
+ * jump under the text that arrives. The row belongs to the frame (it is
+ * erased with it), so the transcript stays free of blank rows.
+ *
+ * main.c sets the flag when a submitted line goes to the server and
+ * clears it when the server's next output arrives. */
+void telnet_app_set_reply_pending(TelnetAppModel *app, int pending);
 
 /* Get component interface for TelnetApp */
 const TuiComponent *telnet_app_component(void);

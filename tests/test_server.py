@@ -40,6 +40,10 @@ OPT_NAWS = 31  # Negotiate About Window Size
 # Prompt
 PROMPT = "\033[32;1m>\033[0m "
 
+# How long the "slow" command takes to answer (seconds). It opens the
+# window in which the client waits with an answer pending.
+SLOW_DELAY = 1.0
+
 
 class TelnetConnection:
     """Handles a single telnet client connection."""
@@ -453,6 +457,21 @@ def main():
         server.close_connection(conn.sock)
         return None
 
+    def handle_slow(args, conn):
+        """Answer after a delay: the client waits with an answer pending."""
+        time.sleep(SLOW_DELAY)
+        return "the slow answer"
+
+    def handle_delayed(args, conn):
+        """Answer after a delay, with its own text.
+
+        The client reaches this one through an asynchronous send (a
+        user-input-hook that consumes the line and calls telnet-send), so
+        the answer text tells the two paths apart.
+        """
+        time.sleep(SLOW_DELAY)
+        return "the delayed answer"
+
     server.add_command(
         "help", lambda args, conn: server.get_help_text(), "Show available commands"
     )
@@ -462,6 +481,8 @@ def main():
         lambda args, conn: "\033[38;2;255;165;0mThis text is orange!\033[0m\r\n",
         "Display text in orange color",
     )
+    server.add_command("slow", handle_slow, "Answer after a delay")
+    server.add_command("delayed", handle_delayed, "Answer after a delay")
 
     server.run()
 

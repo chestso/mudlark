@@ -99,6 +99,18 @@ struct TuiRuntime;
 /* Register runtime for terminal control commands (e.g. window title) */
 void lisp_x_register_runtime(struct TuiRuntime *runtime);
 
+/* After-send callback: called when an asynchronous send went to the
+ * server (telnet-send / send-input flushed by the event loop).
+ *
+ * The callback lets the app mirror the telnet layer's "an answer is owed"
+ * into the frame: the send happens outside the submit path, so the frame
+ * learns about it here. The runtime flushes right after the command that
+ * carried the send, so the frame is repainted with the new state. */
+typedef void (*LispAfterSendCallback)(void);
+
+/* Register the after-send callback (NULL to unregister) */
+void lisp_x_register_after_send_callback(LispAfterSendCallback callback);
+
 /* Dispatch F-key press to Lisp fkey-hook */
 void lisp_x_call_fkey_hook(int fkey_num);
 

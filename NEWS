@@ -40,6 +40,10 @@ Version 0.4.0 (unreleased)
   truecolor and size all come from boba, which probes once at startup.
 * The Kitty keyboard protocol, bracketed paste, Ctrl+D (delete-char) and
   Ctrl+C (discard the line) behave exactly as before.
+* A command you send no longer has its answer land on top of it. While the
+  server owes a reply the frame keeps the row the reply will land in free,
+  so the input line does not jump when the answer arrives — and the answer
+  lands in that row, leaving the transcript free of blank rows.
 * boba floor is 0.9.0, ditty floor is 0.7.3.
 
 Version 0.1.0 (unreleased)
