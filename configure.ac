@@ -95,10 +95,13 @@ dnl Check for boba
 dnl boba's runtime API is not stable across releases (the I/O-source seam,
 dnl TuiColor carriers, the textinput geometry reset), so the floor is the
 dnl release this tree compiles against — again matched by the CI pin.
-dnl 0.9.0 is the floor: 0.8.1 fixes CLIP's one horizontal window, and 0.9.0
-dnl is the release ditty 0.7.3 builds against, so the two floors move
-dnl together.
-PKG_CHECK_MODULES([BOBA], [boba >= 0.9.0])
+dnl 0.11.0 is the floor: tui_msg_stream_text() takes a TuiStreamReading
+dnl there (TUI_STREAM_LINES / TUI_STREAM_TERMINAL), the 0.10.0 `_ex` twin
+dnl having been folded away, and the older three-argument call no longer
+dnl exists. The transcript's commit pass (0.10.1) also owns the UTF-8 tail
+dnl and the SGR state, which is what lets echo() hand over a chunk cut
+dnl anywhere.
+PKG_CHECK_MODULES([BOBA], [boba >= 0.11.0])
 
 dnl Platform-specific socket libraries
 case "$host_os" in

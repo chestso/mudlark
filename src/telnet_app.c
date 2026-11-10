@@ -322,9 +322,10 @@ static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
 
 /* Hand the transcript sane line terminators.
  *
- * boba's row scanner turns EVERY CR and every LF into a row break — it only
- * folds the pair when both bytes sit in the same chunk — and MUD servers are
- * not careful about endings. Carrion Fields, for one, ends its rows with
+ * Under the TUI_STREAM_LINES reading (the one echo() declares), boba's row
+ * scanner turns EVERY CR and every LF into a row break — it only folds the
+ * pair when both bytes sit in the same chunk — and MUD servers are not
+ * careful about endings. Carrion Fields, for one, ends its rows with
  * "\n\r", which would double every line break into a blank row.
  *
  * NVT says CR LF ends a row and CR NUL is a bare CR, so the messy reality is
@@ -371,7 +372,14 @@ static void echo_normalize(TelnetAppModel *app, const char *text, size_t len,
  * committed by the next flush. Byte-identity is the system stream's
  * contract, so a partial last line (a MUD prompt) stays an open row and
  * the next write continues it — which is also why the line endings are
- * normalized first: boba counts every CR and every LF as a row break. */
+ * normalized first: boba counts every CR and every LF as a row break.
+ *
+ * The reading is TUI_STREAM_LINES: what echo_normalize hands over is a row
+ * per terminator, so a bare CR still ENDS the row. boba's other reading,
+ * TUI_STREAM_TERMINAL, would make a bare CR replace the open row (a
+ * progress meter's `10%\r50%`) — a terminal's behaviour, not a MUD's: the
+ * rows here are prose, and a bare CR that reaches this point is a CR NUL
+ * from NVT, which has always ended a row in this client. */
 void telnet_app_echo(TelnetAppModel *app, const char *text, size_t len)
 {
     if (!app || !text || len == 0)
@@ -382,7 +390,7 @@ void telnet_app_echo(TelnetAppModel *app, const char *text, size_t len)
         size_t n = len;
         echo_normalize(app, text, len, &bytes, &n);
         if (n > 0) {
-            TuiMsg msg = tui_msg_stream_text(-1, bytes, n);
+            TuiMsg msg = tui_msg_stream_text(-1, bytes, n, TUI_STREAM_LINES);
             tui_transcript_update(app->transcript, msg);
             tui_msg_free(&msg);
         }

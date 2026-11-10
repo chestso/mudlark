@@ -23,7 +23,7 @@ A terminal-based telnet client with Lisp scripting support, designed for MUD gam
 ## Dependencies
 
 - ditty ≥ 0.7.3 (installed to `~/.local`, auto-detected via pkg-config)
-- boba ≥ 0.9.0 (installed to `~/.local`, auto-detected via pkg-config)
+- boba ≥ 0.11.0 (installed to `~/.local`, auto-detected via pkg-config)
 - Boehm GC (via ditty)
 - PCRE2 (via ditty)
 
