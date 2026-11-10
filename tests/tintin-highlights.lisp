@@ -357,3 +357,56 @@
 (hash-remove! *tintin-highlights* "^%*critical%*")
 (hash-remove! *tintin-highlights* "critical")
 (set! *tintin-highlights-dirty* #t)
+
+;; ============================================================================
+;; Line endings: a highlight colours the line's text, never its terminator
+;; ============================================================================
+;; The C seam folds CR LF / LF CR into ONE row break only while the two bytes
+;; stay adjacent (echo_normalize() in telnet_app.c). A highlight starting at
+;; column 0 of an "\n\r" line used to put its codes ahead of that line's
+;; leading CR, and one whose match ran to the end of a CR LF line put its
+;; reset between the CR and the LF — either way one row break became two and
+;; the transcript gained an empty row.
+(assert-equal (tintin-split-lines "a\n\rb\r\nc\nd")
+ (list "a\n\r" "b\r\n" "c\n" "d")
+ "split-lines keeps CR LF and LF CR together")
+(assert-equal (tintin-split-lines "a\r\rb") (list "a\r" "\r" "b")
+ "split-lines gives two CRs two rows")
+(assert-equal (tintin-line-ending-length "a\r\n") 2
+ "line-ending-length reads CR LF as one ending")
+(assert-equal (tintin-line-ending-length "a\r") 1
+ "line-ending-length reads a trailing CR as an ending on its own")
+
+(hash-set! *tintin-highlights* "^%* screams and attacks %*" '("cyan" nil 5))
+(set! *tintin-highlights-dirty* #t)
+
+;; LF CR (Carrion Fields): the codes follow the pair, they do not split it
+(let ((result (tintin-apply-highlights
+               "You are hungry.\n\rA bobcat screams and attacks you!\n\r")))
+  (assert-true
+   (string-contains? result (concat "You are hungry." "\n\r" "\033[0m\033[36m"))
+   "LF CR ending: highlight codes do not split the row break")
+  (assert-true (string-contains? result "\033[36mA bobcat screams and attacks")
+   "LF CR ending: the matched line is coloured"))
+
+;; CR LF: the closing reset lands inside the row, before the break
+(let ((result (tintin-apply-highlights
+               "You are hungry.\r\nA bobcat screams and attacks you!\r\n")))
+  (assert-true
+   (string-contains? result (concat "attacks you!" "\033[0m" "\r\n"))
+   "CR LF ending: the closing reset stays inside the row"))
+
+;; An anchored pattern sees the line's first character, not the previous
+;; line's CR sitting at the head of the line's text.
+(hash-set! *tintin-highlights* "^A bobcat" '("cyan" nil 5))
+(set! *tintin-highlights-dirty* #t)
+
+(let ((result (tintin-apply-highlights "A bobcat dies.\n\rA bobcat dies.\n\r")))
+  (assert-true
+   (string-contains? result
+    (concat "\n\r" "\033[0m\033[36mA bobcat" "\033[0m" " dies."))
+   "LF CR ending: ^ matches the second line too"))
+
+(hash-remove! *tintin-highlights* "^%* screams and attacks %*")
+(hash-remove! *tintin-highlights* "^A bobcat")
+(set! *tintin-highlights-dirty* #t)

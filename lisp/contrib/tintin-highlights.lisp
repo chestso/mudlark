@@ -9,8 +9,37 @@
 ;; ============================================================================
 ;; LINE SPLITTING
 ;; ============================================================================
-;; Split text into lines, preserving line endings
-;; Returns list of lines with their line endings intact
+;; Length of the terminator that ENDS a line: 0 for none, 1 for a lone CR or
+;; LF, 2 for CR LF / LF CR. A CR or LF as the very last byte counts as an
+;; ending even when nothing follows it here — the other half of the pair may
+;; still arrive in the next chunk, and either way it ends a row.
+(defun tintin-line-ending-length (line)
+  (let ((len (length line)))
+    (if (= len 0)
+      0
+      (let ((last (string-ref line (- len 1))))
+        (if (not (or (char=? last #\newline) (char=? last #\return)))
+          0
+          (if
+            (and (> len 1)
+                 (let ((prev (string-ref line (- len 2))))
+                   (and (or (char=? prev #\newline) (char=? prev #\return))
+                        (not (char=? prev last)))))
+            2
+            1))))))
+
+;; Split text into lines, preserving line endings.
+;;
+;; A terminator is CR LF, LF CR, or a lone CR or LF, and it stays with the
+;; line it ends. The two-byte forms are kept TOGETHER on purpose: as long as
+;; they stay adjacent a transform cannot change how boba reads the rows — the
+;; C seam (echo_normalize() in telnet_app.c) folds a CR LF / LF CR pair into
+;; one row break only when the two bytes are adjacent, and treats each half of
+;; a split pair as a row break of its own. Splitting on LF alone left the CR of
+;; an "\n\r" ending at the head of the NEXT line, inside its text: a highlight
+;; anchored at ^ stopped matching there, and a highlight starting at ^ put its
+;; colour codes between the pair, which is one row break turned into two (an
+;; empty row in the transcript).
 (defun tintin-split-lines (text)
   (if (not (string? text))
     '()
@@ -25,12 +54,16 @@
            (reverse (cons (substring text line-start len) lines))
            (reverse lines)))
         (let ((ch (string-ref text pos)))
-          (if (char=? ch #\newline)
-            ;; Found line ending - add line including \n
-            (progn
-              (set! lines (cons (substring text line-start (+ pos 1)) lines))
-              (set! pos (+ pos 1))
-              (set! line-start pos))
+          (if (or (char=? ch #\newline) (char=? ch #\return))
+            ;; A terminator: one byte, or two when the other half follows
+            (let* ((next (if (< (+ pos 1) len) (string-ref text (+ pos 1)) nil))
+                   (paired
+                    (and next (not (char=? next ch))
+                         (or (char=? next #\newline) (char=? next #\return))))
+                   (end (if paired (+ pos 2) (+ pos 1))))
+              (set! lines (cons (substring text line-start end) lines))
+              (set! pos end)
+              (set! line-start end))
             ;; Regular character - continue
             (set! pos (+ pos 1))))))))
 
@@ -297,38 +330,55 @@
   3. Render char-by-char with priority-based highlight selection
 
   ## Parameters
-  - `line` - Line of text to highlight (may contain ANSI codes)
+  - `line` - Line of text to highlight (may contain ANSI codes, and may end
+    with CR LF, LF CR, CR or LF)
 
   ## Returns
-  Line with ANSI color codes applied for all matching patterns."
+  Line with ANSI color codes applied for all matching patterns.
+
+  ## Notes
+  The terminator is not text: it is split off before the pipeline runs and
+  appended verbatim after it, so a highlight only ever colours the line's
+  content. Codes wedged between the two bytes of a break would make the C
+  seam read one row break as two, and an \"\\n\\r\" ending's CR would count as
+  the next line's first character instead of this line's last."
   (if (or (not (string? line)) (= (hash-count *tintin-highlights*) 0))
     line
-    (progn
-      ;; Re-sort only if dirty
-      (if *tintin-highlights-dirty*
+    (let* ((len (length line))
+           (ending-len (tintin-line-ending-length line))
+           (cut (- len ending-len))
+           (content (substring line 0 cut))
+           (ending (substring line cut len)))
+      (if (string=? content "")
+        line
         (progn
-          (set! *tintin-sorted-highlights-cache*
-           (tintin-sort-highlights-by-priority
-            (hash-entries *tintin-highlights*)))
-          (set! *tintin-highlights-dirty* #f)))
-      ;; Use cached sorted list
-      (let ((sorted *tintin-sorted-highlights-cache*))
-        ;; Phase 1: Parse ANSI
-        (let* ((parsed (tintin-parse-ansi line))
-               (plain-text (car parsed))
-               (ansi-map (cdr parsed)))
-          ;; If plain text is empty, nothing to highlight
-          (if (string=? plain-text "")
-            line
-            ;; Phase 2: Collect all match ranges
-            (let ((match-ranges
-                   (tintin-collect-highlight-matches plain-text sorted)))
-              ;; If no matches, return original line unchanged
-              (if (null? match-ranges)
+          ;; Re-sort only if dirty
+          (if *tintin-highlights-dirty*
+            (progn
+              (set! *tintin-sorted-highlights-cache*
+               (tintin-sort-highlights-by-priority
+                (hash-entries *tintin-highlights*)))
+              (set! *tintin-highlights-dirty* #f)))
+          ;; Use cached sorted list
+          (let ((sorted *tintin-sorted-highlights-cache*))
+            ;; Phase 1: Parse ANSI
+            (let* ((parsed (tintin-parse-ansi content))
+                   (plain-text (car parsed))
+                   (ansi-map (cdr parsed)))
+              ;; If plain text is empty, nothing to highlight
+              (if (string=? plain-text "")
                 line
-                ;; Phase 3: Render
-                (tintin-render-highlighted-line plain-text ansi-map
-                 match-ranges)))))))))
+                ;; Phase 2: Collect all match ranges
+                (let ((match-ranges
+                       (tintin-collect-highlight-matches plain-text sorted)))
+                  ;; If no matches, return original line unchanged
+                  (if (null? match-ranges)
+                    line
+                    ;; Phase 3: Render, then put the terminator back whole
+                    (concat
+                     (tintin-render-highlighted-line plain-text ansi-map
+                      match-ranges)
+                     ending)))))))))))
 
 ;; Main entry point: Apply highlights to incoming text
 ;; Splits text into lines, highlights each line, returns transformed text
