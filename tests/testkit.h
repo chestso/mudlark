@@ -241,6 +241,12 @@ int lisp_x_get_color(const char *n, UiColor *out)
     (void)out;
     return -1;
 }
+struct LispObject;
+struct LispObject *lisp_x_try_eval_string(const char *code)
+{
+    (void)code;
+    return NULL;
+}
 #endif
 
 #ifndef TESTKIT_NO_STUB_UI_COLORS

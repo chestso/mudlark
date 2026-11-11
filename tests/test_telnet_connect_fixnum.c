@@ -65,8 +65,12 @@ static void test_telnet_connect_with_fixnum_vars(void)
     /* Bind the same fixnum-valued vars init.lisp would set. Keep retries
      * and timeout small so a refused connect returns fast. They're still
      * fixnums — same bug surface. */
-    LispObject *r1 = lisp_eval_string("(defvar *connect-timeout* 0)", env);
-    LispObject *r2 = lisp_eval_string("(defvar *connect-max-retries* 0)", env);
+    LispObject *r1 = NULL;
+    LispObject *r2 = NULL;
+    assert(lisp_try_eval_string("(defvar *connect-timeout* 0)", env, &r1) ==
+           LISP_OK);
+    assert(lisp_try_eval_string("(defvar *connect-max-retries* 0)", env,
+                                &r2) == LISP_OK);
     assert(r1 && LISP_TYPE(r1) != LISP_ERROR);
     assert(r2 && LISP_TYPE(r2) != LISP_ERROR);
 

@@ -58,6 +58,15 @@ void lisp_x_register_status_sink(struct TelnetAppModel *app);
 /* Get lisp environment (for accessing Lisp variables from C) */
 void *lisp_x_get_environment(void);
 
+/* Evaluate CODE in the current environment, from C, protected: a Lisp signal
+ * is logged and returns NULL instead of unwinding through C.
+ *
+ * ditty signals by non-local exit; this function is the frame that stops it
+ * at a C boundary which has no ambient eval frame (event-loop housekeeping).
+ * Inside a builtin, Lisp entry points may use the raising lisp_eval instead.
+ * The returned value is GC-managed. */
+struct LispObject *lisp_x_try_eval_string(const char *code);
+
 /* Evaluate Lisp code and build echo buffer (eval-mode style)
  * Uses preallocated DynamicBuffer
  * Output format: "> code\r\n" + (result or "; Error: ...\r\n")

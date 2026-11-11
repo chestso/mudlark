@@ -95,7 +95,7 @@ static int telnet_open_log(Telnet *t, const char *log_dir)
         /* Call Lisp (expand-path "~/...") to ensure consistent expansion logic */
         char eval_buf[600];
         snprintf(eval_buf, sizeof(eval_buf), "(expand-path \"%s\")", log_dir);
-        LispObject *expanded_obj = lisp_eval_string(eval_buf, lisp_env);
+        LispObject *expanded_obj = lisp_x_try_eval_string(eval_buf);
 
         if (expanded_obj && LISP_TYPE(expanded_obj) == LISP_STRING) {
             snprintf(expanded_dir, sizeof(expanded_dir), "%s",

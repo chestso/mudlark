@@ -483,7 +483,13 @@ Example — send a command every 10 seconds:
                (repeat-ms (list-ref timer 2))
                (callback (list-ref timer 3))
                (args (list-ref timer 4)))
-          (apply callback args)
+          ;; ditty signals by non-local exit: a callback that raises must not
+          ;; unwind out of run-timers, or the detached timer list would never
+          ;; be put back. Log it and keep firing the rest.
+          (condition-case err (apply callback args)
+            (error
+             (mudlark-log 'error "timers"
+              (concat "timer callback failed: " (error-message err)))))
           (when (> repeat-ms 0)
             ;; Drift fix: advance from scheduled time, not current time
             (set-car! (cdr timer) (+ fire-time repeat-ms))

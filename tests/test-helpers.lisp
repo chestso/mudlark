@@ -135,38 +135,56 @@
         (hash-set! *hooks* name (hooks--remove-fn hook-list fn-sym))))))
 
 (defun run-hook (hook &rest args)
-  "Mock: run all functions registered on a hook (resolve symbols)."
+  "Mock: run all functions registered on a hook (resolve symbols).
+   A handler that signals is logged and skipped and the remaining handlers
+   still run, matching the C builtin's per-handler lisp_try_eval."
   (let ((name (symbol->string hook)))
     (let ((hook-list (hash-ref *hooks* name)))
       (if hook-list
         (do ((remaining hook-list (cdr remaining)))
             ((null? remaining) nil)
-          (apply (eval (car (car remaining))) args))))))
+          (condition-case err
+            (apply (eval (car (car remaining))) args)
+            (error
+             (mudlark-log 'error "hooks"
+              (concat "run-hook " name ": " (error-message err))))))))))
 
 (defun run-transform-hook--map-list (fn lst)
   "Helper: call fn on each list element, collect non-nil results.
-   If fn returns a list, splice its elements in."
+   If fn returns a list, splice its elements in. A signaling call keeps
+   the original element, as the C builtin does."
   (if (null? lst)
     nil
-    (let ((result (fn (car lst))))
-      (cond
-        ((null? result)
-         (run-transform-hook--map-list fn (cdr lst)))
-        ((pair? result)
-         (append result (run-transform-hook--map-list fn (cdr lst))))
-        (#t
-         (cons result (run-transform-hook--map-list fn (cdr lst))))))))
+    (let ((item (car lst)))
+      (let ((result (condition-case err (fn item)
+                      (error
+                       (mudlark-log 'error "hooks"
+                        (concat "run-transform-hook: " (error-message err)))
+                       item))))
+        (cond
+          ((null? result)
+           (run-transform-hook--map-list fn (cdr lst)))
+          ((pair? result)
+           (append result (run-transform-hook--map-list fn (cdr lst))))
+          (#t
+           (cons result (run-transform-hook--map-list fn (cdr lst)))))))))
 
 (defun run-transform-hook--loop (entries val)
   "Helper: thread value through remaining hook entries (resolve symbols).
-   When value is a list, call handler on each element individually."
+   When value is a list, call handler on each element individually.
+   A signaling call keeps the previous value, as the C builtin does."
   (if (null? entries)
     val
     (let ((fn (eval (car (car entries)))))
       (if (pair? val)
         (run-transform-hook--loop (cdr entries)
           (run-transform-hook--map-list fn val))
-        (run-transform-hook--loop (cdr entries) (fn val))))))
+        (run-transform-hook--loop (cdr entries)
+          (condition-case err (fn val)
+            (error
+             (mudlark-log 'error "hooks"
+              (concat "run-transform-hook: " (error-message err)))
+             val)))))))
 
 (defun run-transform-hook (hook initial-value)
   "Mock: thread a value through all functions registered on a hook."
@@ -177,7 +195,9 @@
         initial-value))))
 
 (defun run-filter-hook (hook value)
-  "Mock: call all handlers with value; return nil if any returned nil."
+  "Mock: call all handlers with value; return nil if any returned nil.
+   A signaling handler is logged and counts as neither consumed nor passing,
+   matching the C builtin."
   (let ((name (symbol->string hook)))
     (let ((hook-list (hash-ref *hooks* name)))
       (if hook-list
@@ -185,8 +205,12 @@
           (do ((remaining hook-list (cdr remaining)))
               ((null? remaining)
                (if consumed nil value))
-            (let ((result (apply (eval (car (car remaining))) (list value))))
-              (if (null? result) (set! consumed #t)))))
+            (condition-case err
+              (if (null? (apply (eval (car (car remaining))) (list value)))
+                (set! consumed #t))
+              (error
+               (mudlark-log 'error "hooks"
+                (concat "run-filter-hook " name ": " (error-message err)))))))
         value))))
 
 ;; ============================================================================
@@ -340,14 +364,20 @@
 
 ;; Assert that expression throws an error
 ;; Usage: (assert-error expr "description")
-;; Returns: nil on success (if error thrown), aborts test if expr succeeds
+;; Returns: nil on success (an error was signaled), aborts the test if expr
+;; succeeds. The failure must be raised *after* the condition-case: ditty
+;; signals by non-local exit, so raising it inside the protected form would
+;; be caught by the same handler and the assertion would silently pass.
 (defmacro assert-error (expr message)
-  `(condition-case err
-     (progn ,expr
+  `(let ((threw #f))
+     (condition-case err
+       ,expr
+       (error (set! threw #t)))
+     (if threw
+       nil
        (error
         (format nil "Assertion failed: ~A (expected error but succeeded)"
-         ,message)))
-     (error nil))) ; Success: error was thrown
+         ,message)))))
 
 ;; Assert that expression evaluates to nil explicitly
 ;; Usage: (assert-nil expr "description")

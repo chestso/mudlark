@@ -280,5 +280,70 @@
 
 (print "Test 15 passed: nonexistent filter hook")
 
+;; ============================================================================
+;; Test 16: run-hook keeps going after a handler signals
+;;
+;; ditty signals by non-local exit; the C builtin wraps each handler in
+;; lisp_try_eval so one broken script cannot silence the rest of the hook.
+;; ============================================================================
+(set! *hooks* (make-hash-table))
+
+(define signal-call-log nil)
+
+(defun signal-boom (x)
+  (set! signal-call-log (append signal-call-log (list "boom")))
+  (car 42))
+
+(defun signal-after (x)
+  (set! signal-call-log (append signal-call-log (list "after"))))
+
+(add-hook 'signal-hook 'signal-boom 10)
+(add-hook 'signal-hook 'signal-after 50)
+
+(set! signal-call-log nil)
+(run-hook 'signal-hook "x")
+(assert-equal signal-call-log '("boom" "after")
+  "run-hook skips a signaling handler and still calls the next one")
+
+(print "Test 16 passed: run-hook continues after a signal")
+
+;; ============================================================================
+;; Test 17: run-transform-hook keeps the previous value when a handler signals
+;; ============================================================================
+(set! *hooks* (make-hash-table))
+
+(defun transform-boom (v) (car 42))
+(defun transform-shout (v) (concat v "!"))
+
+(add-hook 'signal-transform 'transform-boom 10)
+(add-hook 'signal-transform 'transform-shout 50)
+
+(let ((result (run-transform-hook 'signal-transform "value")))
+  (assert-equal result "value!"
+    "run-transform-hook keeps the previous value when a handler signals"))
+
+(print "Test 17 passed: run-transform-hook survives a signal")
+
+;; ============================================================================
+;; Test 18: run-filter-hook neither consumes nor stops on a signal
+;; ============================================================================
+(set! *hooks* (make-hash-table))
+
+(define filter-after-signal nil)
+
+(defun filter-boom (v) (car 42))
+(defun filter-after-pass (v) (set! filter-after-signal #t) v)
+
+(add-hook 'signal-filter 'filter-boom 10)
+(add-hook 'signal-filter 'filter-after-pass 50)
+
+(let ((result (run-filter-hook 'signal-filter "keep")))
+  (assert-equal result "keep"
+    "run-filter-hook does not treat a signaling handler as consumed")
+  (assert-true filter-after-signal
+    "run-filter-hook still calls handlers after one signals"))
+
+(print "Test 18 passed: run-filter-hook survives a signal")
+
 (print "")
 (print "All hook system tests passed!")

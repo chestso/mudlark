@@ -84,6 +84,7 @@ TESTS = \
     test_telnet_connect_fixnum \
     test_telnet_reply_pending \
     hooks.lisp \
+    init-timers.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \
     tintin-commands.lisp \
@@ -137,6 +138,7 @@ EXTRA_DIST = \
     bench-completion.lisp \
     bench-trie-insert.lisp \
     hooks.lisp \
+    init-timers.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \
     tintin-commands.lisp \

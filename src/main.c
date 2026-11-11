@@ -341,9 +341,7 @@ static void process_line(const char *line)
             if (!g_connected && g_server_echo) {
                 g_server_echo = 0;
                 tui_textinput_set_echo_mode(g_textinput, 0);
-                Environment *env = (Environment *)lisp_x_get_environment();
-                if (env)
-                    lisp_eval_string("(status-mode-remove 'echo-off)", env);
+                lisp_x_try_eval_string("(status-mode-remove 'echo-off)");
             }
         }
     } else {
@@ -477,9 +475,7 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
             if (g_server_echo) {
                 g_server_echo = 0;
                 tui_textinput_set_echo_mode(g_textinput, 0);
-                Environment *env = (Environment *)lisp_x_get_environment();
-                if (env)
-                    lisp_eval_string("(status-mode-remove 'echo-off)", env);
+                lisp_x_try_eval_string("(status-mode-remove 'echo-off)");
             }
             update_divider_color();
             echo_to_viewport("\n*** Connection lost ***\n", 25);
@@ -496,14 +492,11 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
         if (echo_now != g_server_echo) {
             g_server_echo = echo_now;
             tui_textinput_set_echo_mode(g_textinput, echo_now);
-            Environment *env = (Environment *)lisp_x_get_environment();
-            if (env) {
-                if (echo_now)
-                    lisp_eval_string(
-                        "(status-mode-set 'echo-off \"\xF0\x9F\x94\x92\" 200)", env);
-                else
-                    lisp_eval_string("(status-mode-remove 'echo-off)", env);
-            }
+            if (echo_now)
+                lisp_x_try_eval_string(
+                    "(status-mode-set 'echo-off \"\xF0\x9F\x94\x92\" 200)");
+            else
+                lisp_x_try_eval_string("(status-mode-remove 'echo-off)");
         }
 
         /* Call input hooks */

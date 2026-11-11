@@ -13,7 +13,8 @@
  *
  * This test exercises the C builtin (not the pure-Lisp mock used by
  * tests/hooks.lisp) by initializing the real Lisp environment and
- * evaluating add-hook expressions through `lisp_eval_string`.
+ * evaluating add-hook expressions through the protected
+ * `lisp_try_eval_string` (ditty 0.9 signals rather than returning errors).
  */
 
 /* A --enable-release build compiles with -DNDEBUG, which would turn every
@@ -67,7 +68,8 @@ static void test_add_hook_with_fixnum_priority(void)
     Environment *env = session_get_base_env();
     assert(env != NULL);
 
-    LispObject *result = lisp_eval_string("(add-hook 'h 'f 1)", env);
+    LispObject *result = NULL;
+    assert(lisp_try_eval_string("(add-hook 'h 'f 1)", env, &result) == LISP_OK);
     assert(result != NULL);
     assert(LISP_TYPE(result) != LISP_ERROR);
 }
@@ -77,8 +79,9 @@ static void test_add_hook_with_fixnum_priority(void)
 static void test_add_hook_with_bignum_priority(void)
 {
     Environment *env = session_get_base_env();
-    LispObject *result =
-        lisp_eval_string("(add-hook 'h2 'f2 100000000000)", env);
+    LispObject *result = NULL;
+    assert(lisp_try_eval_string("(add-hook 'h2 'f2 100000000000)", env,
+                                &result) == LISP_OK);
     assert(result != NULL);
     assert(LISP_TYPE(result) != LISP_ERROR);
 }
@@ -87,17 +90,21 @@ static void test_add_hook_with_bignum_priority(void)
 static void test_add_hook_two_args(void)
 {
     Environment *env = session_get_base_env();
-    LispObject *result = lisp_eval_string("(add-hook 'h3 'f3)", env);
+    LispObject *result = NULL;
+    assert(lisp_try_eval_string("(add-hook 'h3 'f3)", env, &result) ==
+           LISP_OK);
     assert(result != NULL);
     assert(LISP_TYPE(result) != LISP_ERROR);
 }
 
-/* Non-integer priority must produce a Lisp error, not a segfault.
+/* Non-integer priority must signal a Lisp error, not a segfault.
  * This exercises the LISP_TYPE check on a tagged-immediate non-integer. */
 static void test_add_hook_rejects_non_integer_priority(void)
 {
     Environment *env = session_get_base_env();
-    LispObject *result = lisp_eval_string("(add-hook 'h4 'f4 \"high\")", env);
+    LispObject *result = NULL;
+    assert(lisp_try_eval_string("(add-hook 'h4 'f4 \"high\")", env,
+                                &result) == LISP_SIGNALED);
     assert(result != NULL);
     assert(LISP_TYPE(result) == LISP_ERROR);
 }

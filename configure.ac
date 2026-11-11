@@ -86,11 +86,11 @@ PKG_PROG_PKG_CONFIG
 dnl Check for ditty
 dnl The minimum is the release mudlark is built and tested against; the CI
 dnl dependency pin in .github/workflows/windows.yml tracks the same version
-dnl (bump both together). The API floor is 0.7.3 — 0.7.2 reaches into
-dnl TuiTextInput's fields to save the history ring, and boba 0.8 made that
-dnl model opaque — and 0.7.4 is the latest release, so that is what this
-dnl tree is built and tested against.
-PKG_CHECK_MODULES([DITTY], [ditty >= 0.7.4])
+dnl (bump both together). 0.9.0 is the floor: ditty signals by non-local
+dnl exit there (lisp_raise* / lisp_try*, with lisp_eval_string replaced by
+dnl lisp_try_eval_string), so the C↔Lisp seam here is written against the
+dnl protected API. The older error-as-value API no longer exists.
+PKG_CHECK_MODULES([DITTY], [ditty >= 0.9.0])
 
 dnl Check for boba
 dnl boba's runtime API is not stable across releases (the I/O-source seam,
