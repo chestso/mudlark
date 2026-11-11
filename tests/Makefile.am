@@ -85,6 +85,8 @@ TESTS = \
     test_telnet_reply_pending \
     hooks.lisp \
     init-timers.lisp \
+    init.lisp \
+    practice.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \
     tintin-commands.lisp \

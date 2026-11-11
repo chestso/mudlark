@@ -138,16 +138,17 @@
   (assert-equal (length results) 1 "finds word in sparse buffer")
   (assert-equal (car results) "alpha" "correct word from sparse buffer"))
 
-;; Vector entries are lowercase strings (buffer slot stores lowercase key)
+;; Buffer slots and store keys hold the original word (the trie path is the
+;; only lowercased thing: case variants share it)
 (reset-completion-store 10)
 (add-word-to-store "Hello")
 (let ((entry (vector-ref *completion-word-order* 0)))
   (assert-true (string? entry) "vector entry is a string")
-  (assert-equal entry "hello" "vector entry is lowercase key"))
+  (assert-equal entry "Hello" "vector entry preserves original case"))
 
-;; Store entry contains original case
-(let ((entry (hash-ref *completion-words* "hello")))
-  (assert-true (not (null? entry)) "store has entry for lowercase key")
+;; Store entry is keyed by the original case
+(let ((entry (hash-ref *completion-words* "Hello")))
+  (assert-true (not (null? entry)) "store has entry for original-case key")
   (assert-equal (car entry) "Hello" "store entry preserves original case"))
 
 ;; Case-insensitive matching returns original case
@@ -165,26 +166,25 @@
   (assert-equal (car results) "APPLE"
    "lowercase prefix matches all-caps word"))
 
-;; Mixed-case duplicate detection (same lowercase key)
+;; Case variants are separate entries on a shared (lowercased) trie path
 (reset-completion-store 10)
 (add-word-to-store "Hello")
 (add-word-to-store "hello")
 (let ((entry (hash-ref *completion-words* "hello")))
   (assert-equal (list-ref entry 2) 1
-   "second insert of same-lowercase word takes new slot"))
-(assert-equal (vector-ref *completion-word-order* 0) nil
- "first slot cleared when same-lowercase duplicate inserted")
+   "second case variant takes a new slot"))
+(assert-equal (vector-ref *completion-word-order* 0) "Hello"
+ "first slot keeps the first case variant")
 (let ((results (get-completions-from-store "hel")))
-  (assert-equal (length results) 1 "only one entry for case-variant duplicates")
-  (assert-equal (car results) "hello"
-   "latest case variant is the one returned"))
+  (assert-equal (length results) 2 "case variants are stored separately")
+  (assert-equal (car results) "hello" "newest case variant first"))
 
-;; Re-insert with different case updates stored word
+;; A third case variant is another entry; the case-exact prefix match leads
 (add-word-to-store "HELLO")
 (let ((results (get-completions-from-store "hel")))
-  (assert-equal (length results) 1 "still one entry after case-variant re-add")
-  (assert-equal (car results) "HELLO"
-   "re-add with different case updates stored word"))
+  (assert-equal (length results) 3 "still one entry per case variant")
+  (assert-equal results (list "hello" "HELLO" "Hello")
+   "case-exact prefix match leads, the rest follow newest first"))
 
 ;; get-completions-from-store edge cases
 (assert-equal (get-completions-from-store "") '()
@@ -238,9 +238,9 @@
 (add-word-to-store "Beta")
 (add-word-to-store "Gamma")
 (add-word-to-store "Delta")
-(assert-true (null? (hash-ref *completion-words* "alpha"))
+(assert-true (null? (hash-ref *completion-words* "Alpha"))
  "evicted word removed from store")
-(let ((entry (hash-ref *completion-words* "delta")))
+(let ((entry (hash-ref *completion-words* "Delta")))
   (assert-equal (list-ref entry 2) 0 "new word takes evicted slot"))
 (assert-equal (get-completions-from-store "alp") '()
  "evicted word not found in completions")
@@ -249,7 +249,7 @@
 (reset-completion-store 10)
 (add-word-to-store "cat")
 (add-word-to-store "car")
-(trie-remove! *completion-trie* "cat")
+(trie-remove-entry! *completion-trie* "cat" "cat")
 ;; "c" -> "a" path should still exist for "car"
 (let ((node (trie-walk-to *completion-trie* "car")))
   (assert-true (not (null? (car node)))
@@ -257,7 +257,7 @@
 (assert-true (null? (trie-walk-to *completion-trie* "cat"))
  "cat path removed from trie")
 ;; Remove car too — now trie should be empty
-(trie-remove! *completion-trie* "car")
+(trie-remove-entry! *completion-trie* "car" "car")
 (assert-equal (length (hash-keys (cdr *completion-trie*))) 0
  "trie is empty after removing all words")
 

@@ -4,6 +4,11 @@
 ;; Load practice.lisp (will use our mocks)
 (load "lisp/contrib/practice.lisp")
 
+;; Retry patterns have no defaults any more — they are user configuration.
+;; Register the messages the hook is driven with below.
+(practice-add-retry-pattern "You failed.")
+(practice-add-retry-pattern "You lost your concentration.")
+
 ;; ============================================================================
 ;; practice-send - delegates to send-input
 ;; ============================================================================
