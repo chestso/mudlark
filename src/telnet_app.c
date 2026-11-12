@@ -286,37 +286,14 @@ static TuiView telnet_app_view(const TuiModel *model, DynamicBuffer *out)
     TuiStyle divider =
         tui_style_foreground(app->border_style, ui_tui_color(app->border_color));
 
-    /* An answer is pending: the frame keeps the row the answer will land
-     * in free, so the input line does not jump under the text that
-     * arrives. The row is part of the frame (boba erases it with the
-     * frame), so the transcript keeps no blank row of its own: the
-     * answer is written over the frame's top row when it comes.
-     *
-     * The row is a newline, so boba counts it as the frame's first row —
-     * which is what makes the frame's geometry (and the erase that
-     * follows the answer) line up. It is cleared as well as skipped:
-     * the frame can grow by this row in place (the answer's row appears
-     * when the line reaches the server, which is after the echo's
-     * paint), and the row the divider used to occupy becomes the
-     * reserved one. Without the erase that row would still show the
-     * old divider. */
-    if (app->reply_pending) {
-        dynamic_buffer_append_str(out, "\r");
-        dynamic_buffer_append_str(out, EL_TO_END);
-        dynamic_buffer_append_str(out, "\n");
-    }
-
     render_divider_titled(out, app->terminal_width, &TUI_BORDER_NORMAL,
                           &divider, app->status_text, app->title_buf);
     dynamic_buffer_append_str(out, "\r\n");
     tui_textinput_view(app->textinput, out);
 
-    /* The textinput's rows start one below the divider — two below it
-     * while the answer's row is kept free. */
+    /* The textinput's rows start one below the divider. */
     TuiCursor c = tui_textinput_cursor_pos(app->textinput);
-    int input_row = app->reply_pending ? 2 : 1;
-    v.cursor = c.visible ? tui_cursor_at(c.row + input_row, c.col)
-                         : tui_cursor_hidden();
+    v.cursor = c.visible ? tui_cursor_at(c.row + 1, c.col) : tui_cursor_hidden();
     return v;
 }
 
@@ -494,15 +471,6 @@ void telnet_app_set_quitting(TelnetAppModel *app, int quitting)
     if (!app)
         return;
     app->quitting = quitting ? 1 : 0;
-}
-
-/* Mark the server as owing an answer: the frame keeps a row free above
- * the divider for it (see telnet_app_view). */
-void telnet_app_set_reply_pending(TelnetAppModel *app, int pending)
-{
-    if (!app)
-        return;
-    app->reply_pending = pending ? 1 : 0;
 }
 
 /* Static component interface instance */

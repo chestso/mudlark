@@ -1,7 +1,7 @@
 # tests/Makefile.am - Test files
 
 # C tests
-check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum test_telnet_reply_pending
+check_PROGRAMS = test_telnet_app test_event_loop test_add_hook_fixnum test_telnet_connect_fixnum
 
 test_telnet_app_SOURCES = test_telnet_app.c
 test_telnet_app_CPPFLAGS = \
@@ -59,21 +59,6 @@ test_telnet_connect_fixnum_LDADD = \
     $(BOBA_LIBS) \
     $(SOCKET_LIBS)
 
-# The telnet layer owns "an answer is owed": the line-sending path sets
-# it, the first byte that arrives clears it.
-test_telnet_reply_pending_SOURCES = test_telnet_reply_pending.c
-test_telnet_reply_pending_CPPFLAGS = \
-    -I$(top_srcdir)/src \
-    -I$(top_srcdir)/include \
-    $(BOBA_CFLAGS)
-test_telnet_reply_pending_LDADD = \
-    $(top_builddir)/src/mudlark-telnet.o \
-    $(top_builddir)/src/mudlark-logging.o \
-    $(top_builddir)/src/mudlark-path_utils.o \
-    $(DITTY_LIBS) \
-    $(BOBA_LIBS) \
-    $(SOCKET_LIBS)
-
 # Test programs (C, Lisp, Python, shell). All entries are run by
 # `make check`; missing prerequisites must skip via exit 77, never silently
 # pass.
@@ -82,7 +67,6 @@ TESTS = \
     test_event_loop \
     test_add_hook_fixnum \
     test_telnet_connect_fixnum \
-    test_telnet_reply_pending \
     hooks.lisp \
     init-timers.lisp \
     init.lisp \
@@ -123,7 +107,6 @@ AM_TESTS_ENVIRONMENT = \
 EXTRA_DIST = \
     testkit.h \
     test_server.py \
-    async-send-hook.lisp \
     bench-data \
     init.lisp \
     practice.lisp \

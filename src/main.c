@@ -166,22 +166,6 @@ static void update_divider_color(void)
     }
 }
 
-/* Mirror the telnet layer's "the server owes an answer" into the frame.
- *
- * The telnet layer owns the fact: a line went out and nothing has come
- * back yet (telnet_awaiting_reply). The frame only shows it — while an
- * answer is owed the frame keeps the row the answer will land in free,
- * so the input line does not jump under the text that arrives.
- *
- * Called wherever the frame is about to be painted with a new answer
- * state: after a line was sent, after the server's output arrived, and
- * after an asynchronous send (telnet-send / send-input) went out. */
-static void sync_reply_pending(void)
-{
-    int pending = g_connected && g_telnet && telnet_awaiting_reply(g_telnet);
-    telnet_app_set_reply_pending(g_app, pending);
-}
-
 /* Cleanup function called at exit.
  * tui_runtime_run() handles its own stop/raw-mode restore and also
  * registers an atexit handler for abnormal exits. */
@@ -345,12 +329,6 @@ static void process_line(const char *line)
             }
         }
     } else {
-        /* The echo's flush paints the frame, so the frame's answer state
-         * has to be right before it: an answer owed by an earlier line
-         * still shows, a line that is about to be sent does not (it is
-         * not owed until it is on the wire). */
-        sync_reply_pending();
-
         if (g_server_echo) {
             /* Password mode: don't echo the typed text, just the newline */
             echo_to_viewport("\n", 1);
@@ -372,20 +350,12 @@ static void process_line(const char *line)
             /* Process through user input transform hook */
             LispObject *result = lisp_x_call_user_input_transform_hook(line);
             if (g_connected) {
-                /* The line is on the wire: the server owes an answer. */
                 lisp_x_send_hook_result(result, g_telnet);
             } else if (result && result != NIL) {
-                /* Nothing was sent: no answer is owed. */
-                sync_reply_pending();
                 echo_to_viewport("Not connected. Use :connect <host> <port>\n", 43);
             }
         }
     }
-
-    /* The line may have gone to the server (or an earlier line may still
-     * be waiting for its answer): mirror the telnet layer's state into
-     * the frame before it is painted again. */
-    sync_reply_pending();
 
     /* Update prompt */
     const char *prompt = lisp_x_get_prompt();
@@ -470,8 +440,6 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
 
         if (received < 0) {
             g_connected = 0;
-            /* No answer will come: the frame gives the row back. */
-            sync_reply_pending();
             if (g_server_echo) {
                 g_server_echo = 0;
                 tui_textinput_set_echo_mode(g_textinput, 0);
@@ -505,16 +473,9 @@ static int handle_telnet_data(char *recv_buffer, size_t buffer_size)
         const char *filtered = lisp_x_call_telnet_input_transform_hook(
             recv_buffer, received, &filtered_len);
 
-        /* Echo through the output seam (the flush is once per drain).
-         * The server's output is the answer to whatever was pending: the
-         * frame gives up the row it kept free for it, and the answer
-         * lands in that row. */
+        /* Echo through the output seam (the flush is once per drain) */
         telnet_app_echo(g_app, filtered, filtered_len);
     }
-
-    /* The server's output is the answer: the frame gives the row it kept
-     * free back before it is painted again. */
-    sync_reply_pending();
 
     /* Re-render full screen after processing all available data */
     tui_runtime_flush(g_runtime);
@@ -691,10 +652,6 @@ int main(int argc, char *argv[])
 
     /* Register TelnetApp model with Lisp extension as the set-status sink */
     lisp_x_register_status_sink(g_app);
-
-    /* An asynchronous send (telnet-send / send-input) happens outside the
-     * submit path: the frame learns that an answer is owed from here. */
-    lisp_x_register_after_send_callback(sync_reply_pending);
 
     /* Now that the output seam exists, route log messages through it */
     mudlark_log_set_echo(echo_to_viewport);

@@ -9,9 +9,6 @@
 #      the next write continues it
 #   4. a width change reflows the frame without stranding its old rows
 #   5. a multi-line input grows the frame, and discarding it shrinks it back
-#   6. a pending answer keeps a row free above the divider
-#   7. an asynchronous send (telnet-send from a user-input-hook) keeps a row
-#      free above the divider too
 #
 # Exit code 77 = "skip" per autotools convention.
 
@@ -35,19 +32,15 @@ if [ ! -x "$MUDLARK_BIN" ]; then
 	exit 77
 fi
 
-# Three sessions: one against the mock server (output path), one on its own
-# (frame shape: resize and multi-line input need a quiet pane), and one that
-# loads the hook that sends asynchronously.
+# Two sessions: one against the mock server (output path) and one on its own
+# (frame shape: resize and multi-line input need a quiet pane).
 SESSION="mudlark-inline-$$"
 BARE_SESSION="mudlark-inline-bare-$$"
-ASYNC_SESSION="mudlark-inline-async-$$"
-ASYNC_HOOK_LISP="$SCRIPT_DIR/async-send-hook.lisp"
 SERVER_PID=
 
 cleanup() {
 	tmux kill-session -t "$SESSION" 2>/dev/null || true
 	tmux kill-session -t "$BARE_SESSION" 2>/dev/null || true
-	tmux kill-session -t "$ASYNC_SESSION" 2>/dev/null || true
 	if [ -n "$SERVER_PID" ]; then
 		kill "$SERVER_PID" 2>/dev/null || true
 		wait "$SERVER_PID" 2>/dev/null || true
@@ -84,14 +77,11 @@ tmux new-session -d -s "$SESSION" -x "$WIDTH" -y "$HEIGHT" -c "$TOP_SRCDIR" \
 	sh -c "$MUDLARK_BIN 127.0.0.1 $PORT; sleep 60"
 tmux new-session -d -s "$BARE_SESSION" -x "$WIDTH" -y "$HEIGHT" -c "$TOP_SRCDIR" \
 	sh -c "$MUDLARK_BIN; sleep 60"
-tmux new-session -d -s "$ASYNC_SESSION" -x "$WIDTH" -y "$HEIGHT" -c "$TOP_SRCDIR" \
-	sh -c "$MUDLARK_BIN -l $ASYNC_HOOK_LISP 127.0.0.1 $PORT; sleep 60"
 sleep 1.0
 
 pane() { tmux capture-pane -p -t "$SESSION"; }
 scrollback() { tmux capture-pane -p -S - -t "$SESSION"; }
 bare_pane() { tmux capture-pane -p -t "$BARE_SESSION"; }
-async_pane() { tmux capture-pane -p -t "$ASYNC_SESSION"; }
 
 dump() {
 	echo "--- pane ---" >&2
@@ -198,88 +188,6 @@ if [ "$(echo "$SHRUNK" | wc -w)" != "1" ]; then
 	echo "FAIL: the frame did not shrink cleanly (dividers: $SHRUNK)" >&2
 	echo "--- bare pane ---" >&2
 	bare_pane >&2
-	exit 1
-fi
-
-# --- 6. A pending answer keeps a row free above the divider -----------
-
-# The server takes a second to answer "slow". While the answer is owed
-# the frame keeps the row it will land in free, so the input line does
-# not sit on top of the text that arrives.
-tmux send-keys -t "$SESSION" 'slow'
-sleep 0.2
-tmux send-keys -t "$SESSION" Enter
-sleep 0.4
-
-if ! pane | python3 -c '
-import sys
-lines = sys.stdin.read().split("\n")
-idx = [i for i, l in enumerate(lines) if l.rstrip() == "> slow"]
-if not idx:
-    sys.exit(1)
-i = idx[-1]
-# the echoed command, a free row, then the divider
-sys.exit(0 if lines[i + 1].strip() == "" and lines[i + 2].startswith("─") else 1)
-'; then
-	die "the frame did not keep a row free for the pending answer"
-fi
-
-# The answer lands in the row the frame kept free: the transcript keeps
-# no blank row between the echoed command and the answer.
-sleep 1.5
-if ! pane | python3 -c '
-import sys
-lines = sys.stdin.read().split("\n")
-idx = [i for i, l in enumerate(lines) if l.rstrip() == "> slow"]
-if not idx:
-    sys.exit(1)
-i = idx[-1]
-sys.exit(0 if lines[i + 1].strip() == "the slow answer" else 1)
-'; then
-	die "the answer did not land in the row the frame kept free"
-fi
-
-# --- 7. An asynchronous send keeps a row free too ---------------------
-
-# The line is consumed by a user-input-hook that sends it with
-# telnet-send: the send goes out through the event loop, after the
-# submit path is done. The frame still keeps the row the answer will
-# land in free — the telnet layer owns that fact, not the submit path.
-tmux send-keys -t "$ASYNC_SESSION" 'async'
-sleep 0.2
-tmux send-keys -t "$ASYNC_SESSION" Enter
-sleep 0.4
-
-if ! async_pane | python3 -c '
-import sys
-lines = sys.stdin.read().split("\n")
-idx = [i for i, l in enumerate(lines) if l.rstrip() == "> async"]
-if not idx:
-    sys.exit(1)
-i = idx[-1]
-# the echoed command, a free row, then the divider
-sys.exit(0 if lines[i + 1].strip() == "" and lines[i + 2].startswith("─") else 1)
-'; then
-	echo "FAIL: the frame did not keep a row free for the asynchronous answer" >&2
-	echo "--- async pane ---" >&2
-	async_pane >&2
-	exit 1
-fi
-
-# The answer lands in the row the frame kept free.
-sleep 1.5
-if ! async_pane | python3 -c '
-import sys
-lines = sys.stdin.read().split("\n")
-idx = [i for i, l in enumerate(lines) if l.rstrip() == "> async"]
-if not idx:
-    sys.exit(1)
-i = idx[-1]
-sys.exit(0 if lines[i + 1].strip() == "the delayed answer" else 1)
-'; then
-	echo "FAIL: the answer did not land in the row the frame kept free" >&2
-	echo "--- async pane ---" >&2
-	async_pane >&2
 	exit 1
 fi
 

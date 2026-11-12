@@ -34,9 +34,8 @@
 
 #include "telnet_internal.h"
 
-/* Send Telnet command. Protocol traffic, not a user line: it never
- * reserves a row for an answer (see Telnet.awaiting_reply). */
-int telnet_send_command(int socket, int cmd, int opt)
+/* Send Telnet command */
+static int telnet_send_command(int socket, int cmd, int opt)
 {
     unsigned char buf[3];
     buf[0] = TELNET_IAC;
@@ -216,7 +215,6 @@ Telnet *telnet_create(void)
     t->server_echo = 0;
     t->data_state = TELNET_DATA_NORMAL;
     t->log_file = NULL;
-    t->awaiting_reply = 0;
 
     /* Create reusable buffers for send operations */
     t->send_buffer = dynamic_buffer_create(4096);
@@ -495,8 +493,6 @@ void telnet_disconnect(Telnet *t)
     t->state = TELNET_STATE_DISCONNECTED;
     t->server_echo = 0;
     t->data_state = TELNET_DATA_NORMAL;
-    /* No answer can come any more: the frame gives the row back. */
-    t->awaiting_reply = 0;
 }
 
 int telnet_send(Telnet *t, const char *data, size_t len)
@@ -543,16 +539,7 @@ int telnet_send_with_crlf(Telnet *t, const char *data, size_t len)
     dynamic_buffer_append(buf, "\r\n", 2);
 
     /* Send via telnet_send which handles IAC escaping */
-    int result = telnet_send(t, dynamic_buffer_data(buf), dynamic_buffer_len(buf));
-
-    /* This is the one user-line path (hook results, telnet-send and
-     * send-input all end here), so this is where the server starts owing
-     * an answer. The frame keeps the row the answer will land in free
-     * until the first byte comes back. */
-    if (result > 0)
-        t->awaiting_reply = 1;
-
-    return result;
+    return telnet_send(t, dynamic_buffer_data(buf), dynamic_buffer_len(buf));
 }
 
 /* Get user input buffer for LF->CRLF conversion (used by main.c) */
@@ -667,9 +654,6 @@ int telnet_receive(Telnet *t, char *buffer, size_t bufsize)
 
         if (pos > 0) {
             buffer[pos] = '\0';
-            /* The server answered (or at least said something): the frame
-             * gives the row it kept free back. */
-            t->awaiting_reply = 0;
             return pos;
         }
 
@@ -683,8 +667,6 @@ int telnet_receive(Telnet *t, char *buffer, size_t bufsize)
 }
 
 int telnet_get_server_echo(Telnet *t) { return t ? t->server_echo : 0; }
-
-int telnet_awaiting_reply(const Telnet *t) { return t ? t->awaiting_reply : 0; }
 
 int telnet_get_socket(Telnet *t) { return t ? t->socket : -1; }
 

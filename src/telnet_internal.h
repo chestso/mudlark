@@ -7,8 +7,7 @@
 #include <boba/dynamic_buffer.h>
 #include <stdio.h>
 
-/* Telnet protocol constants (RFC 854). They live here so the tests can
- * drive the negotiation path directly. */
+/* Telnet protocol constants (RFC 854). */
 #define TELNET_IAC  255 /* Interpret As Command */
 #define TELNET_SE   240 /* Subnegotiation End */
 #define TELNET_NOP  241 /* No operation */
@@ -58,17 +57,6 @@ struct Telnet
                                    across calls) */
     DynamicBuffer
         *user_input_buffer; /* Buffer for user input LF->CRLF conversion */
-
-    /* 1 = a line went to the server and nothing has come back yet: the
-     * server owes an answer. Set by the line-sending path
-     * (telnet_send_with_crlf), cleared by the first byte that arrives (and
-     * by a disconnect). Protocol traffic (IAC negotiation, NAWS) is not a
-     * user line and never sets it. */
-    int awaiting_reply;
 };
-
-/* Send a Telnet command (IAC negotiation) on a socket. Not a user line:
- * it never reserves a row for an answer. */
-int telnet_send_command(int socket, int cmd, int opt);
 
 #endif /* TELNET_INTERNAL_H */

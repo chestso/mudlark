@@ -406,37 +406,6 @@ static void test_view_grows_with_a_multiline_input(void)
     test_app_free(app);
 }
 
-/* While the server owes an answer the frame keeps the row the answer
- * will land in free: the frame grows by one row (a bare newline above
- * the divider) and the input row drops with it. The answer is written
- * over that row when it comes, so the transcript keeps no blank row. */
-static void test_view_reserves_a_row_for_the_pending_answer(void)
-{
-    TelnetAppModel *app = create_test_app();
-    DynamicBuffer *out = new_frame_buffer();
-
-    TuiView plain = g_comp->view((TuiModel *)app, out);
-    TuiCursor ti = tui_textinput_cursor_pos(telnet_app_get_textinput(app));
-    assert(plain.cursor.row == ti.row + 1);
-    assert(dynamic_buffer_data(out)[0] != '\n');
-
-    telnet_app_set_reply_pending(app, 1);
-    dynamic_buffer_clear(out);
-    TuiView pending = g_comp->view((TuiModel *)app, out);
-
-    /* The input row drops one: the reserved row sits above the divider. */
-    assert(pending.cursor.row == ti.row + 2);
-    /* The reserved row is the frame's first row: the paint opens with a
-     * cleared row and a newline (the divider's own "\r" puts it back in
-     * column 0). The row is cleared, not just skipped: the frame can
-     * grow by it in place, and the row the divider used to occupy
-     * becomes the reserved one. */
-    assert(strncmp(dynamic_buffer_data(out), "\r\x1b[K\n", 5) == 0);
-
-    dynamic_buffer_destroy(out);
-    test_app_free(app);
-}
-
 /* The quitting frame paints one blank row: with no rows below it to
  * stale-erase, the frame's top row has to be cleared by being painted. */
 static void test_quitting_frame_is_empty(void)
@@ -990,7 +959,6 @@ int main(void)
     RUN_TEST(test_view_paints_divider_and_input);
     RUN_TEST(test_view_cursor_is_below_the_divider);
     RUN_TEST(test_view_grows_with_a_multiline_input);
-    RUN_TEST(test_view_reserves_a_row_for_the_pending_answer);
     RUN_TEST(test_quitting_frame_is_empty);
 
     /* Output seam */

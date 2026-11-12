@@ -40,15 +40,6 @@ int telnet_send(Telnet *t, const char *data, size_t len);
 /* Send data to server with CRLF appended (for line-based protocols) */
 int telnet_send_with_crlf(Telnet *t, const char *data, size_t len);
 
-/* Is the server owed an answer? 1 = a line was sent and nothing has come
- * back yet.
- *
- * The telnet layer owns this fact: the line-sending path sets it, the
- * first byte that arrives clears it (a disconnect clears it too). The
- * caller only mirrors it — e.g. into the frame, which keeps the row the
- * answer will land in free while the answer is owed. */
-int telnet_awaiting_reply(const Telnet *t);
-
 /* Get user input buffer for LF->CRLF conversion */
 DynamicBuffer *telnet_get_user_input_buffer(Telnet *t);
 
