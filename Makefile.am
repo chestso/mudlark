@@ -9,7 +9,6 @@ EXTRA_DIST = \
     build-aux/git-version.sh \
     version \
     README.md \
-    NEWS \
     ChangeLog \
     AUTHORS \
     COPYING \
