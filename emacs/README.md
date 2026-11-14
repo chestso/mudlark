@@ -22,7 +22,7 @@ From the mudlark build directory (or top-level source via `make emacs-*`):
 ```bash
 make emacs          # byte-compile tintin-mode.el
 make emacs-test     # run ERT test suite
-make emacs-format   # indent elisp files + prettier on Markdown
+make emacs-format   # indent elisp files + dprint on Markdown
 make emacs-install  # install to $(prefix)/share/emacs/site-lisp/
 make emacs-clean    # remove byte-compiled artifacts
 ```

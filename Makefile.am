@@ -23,7 +23,7 @@ EXTRA_DIST = \
     emacs/tintin-mode.el \
     emacs/tintin-mode-tests.el
 
-# Format target — clang-format on C, shfmt on shell, prettier on Markdown,
+# Format target — clang-format on C, shfmt on shell, dprint on Markdown,
 # black on Python, and the Lisp formatter (from the installed ditty
 # share dir or sibling checkout) on .lisp files via ditty.
 .PHONY: format
@@ -43,12 +43,12 @@ format:
 	else \
 	    echo "shfmt not found - skipping shell script formatting." >&2; \
 	fi
-	@if command -v prettier >/dev/null 2>&1; then \
-	    echo "Formatting Markdown with prettier..."; \
-	    find $(top_srcdir) -maxdepth 2 -name '*.md' -print0 \
-	        | xargs -0 prettier --write; \
+	@if command -v dprint >/dev/null 2>&1; then \
+	    echo "Formatting Markdown with dprint..."; \
+	    find $(top_srcdir) -maxdepth 2 -name '*.md' -not -path '*/node_modules/*' -print0 \
+	        | xargs -0 -r dprint fmt; \
 	else \
-	    echo "prettier not found - skipping Markdown formatting." >&2; \
+	    echo "dprint not found - skipping Markdown formatting." >&2; \
 	fi
 	@if command -v black >/dev/null 2>&1; then \
 	    echo "Formatting Python with black..."; \
@@ -88,7 +88,7 @@ format:
 # Usage (from the build directory):
 #   make emacs          # byte-compile
 #   make emacs-test     # run ERT test suite
-#   make emacs-format   # indent elisp + prettier on Markdown
+#   make emacs-format   # indent elisp + dprint on Markdown
 #   make emacs-install  # install to $(prefix)/share/emacs/site-lisp/
 #   make emacs-clean    # remove byte-compiled artifacts
 #

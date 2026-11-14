@@ -29,6 +29,6 @@ elisp-format:
 	  --eval '(require (quote package))' \
 	  --eval '(package-initialize)' \
 	  --eval '(dolist (f (list "$(srcdir)/tintin-mode.el" "$(srcdir)/tintin-mode-tests.el")) (find-file f) (indent-region (point-min) (point-max)) (save-buffer))'
-	@command -v prettier >/dev/null 2>&1 && (ls $(srcdir)/*.md >/dev/null 2>&1 && prettier --write $(srcdir)/*.md || true) || true
+	@command -v dprint >/dev/null 2>&1 && (ls $(srcdir)/*.md >/dev/null 2>&1 && dprint fmt $(srcdir)/*.md || true) || true
 
 CLEANFILES = *.elc
