@@ -86,23 +86,29 @@ PKG_PROG_PKG_CONFIG
 dnl Check for ditty
 dnl The minimum is the release mudlark is built and tested against; the CI
 dnl dependency pin in .github/workflows/windows.yml tracks the same version
-dnl (bump both together). 0.9.0 is the floor: ditty signals by non-local
-dnl exit there (lisp_raise* / lisp_try*, with lisp_eval_string replaced by
+dnl (bump both together). ditty signals by non-local exit since 0.9.0
+dnl (lisp_raise* / lisp_try*, with lisp_eval_string replaced by
 dnl lisp_try_eval_string), so the C↔Lisp seam here is written against the
-dnl protected API. The older error-as-value API no longer exists.
-PKG_CHECK_MODULES([DITTY], [ditty >= 0.9.0])
+dnl protected API; the older error-as-value API no longer exists. The floor
+dnl is 0.10.0, the release this tree ships against: terminal input is
+dnl decoded as the UTF-8 the terminal actually sends, and a frame leaves in
+dnl one unbuffered write.
+PKG_CHECK_MODULES([DITTY], [ditty >= 0.10.0])
 
 dnl Check for boba
 dnl boba's runtime API is not stable across releases (the I/O-source seam,
 dnl TuiColor carriers, the textinput geometry reset), so the floor is the
 dnl release this tree compiles against — again matched by the CI pin.
-dnl 0.11.0 is the floor: tui_msg_stream_text() takes a TuiStreamReading
-dnl there (TUI_STREAM_LINES / TUI_STREAM_TERMINAL), the 0.10.0 `_ex` twin
-dnl having been folded away, and the older three-argument call no longer
-dnl exists. The transcript's commit pass (0.10.1) also owns the UTF-8 tail
-dnl and the SGR state, which is what lets echo() hand over a chunk cut
-dnl anywhere.
-PKG_CHECK_MODULES([BOBA], [boba >= 0.11.0])
+dnl 0.11.4 is the floor: 0.11.0 is where tui_msg_stream_text() took a
+dnl TuiStreamReading (TUI_STREAM_LINES / TUI_STREAM_TERMINAL), the 0.10.0
+dnl `_ex` twin having been folded away, and the older three-argument call no
+dnl longer exists. The transcript's commit pass (0.10.1) also owns the UTF-8
+dnl tail and the SGR state, which is what lets echo() hand over a chunk cut
+dnl anywhere. 0.11.1–0.11.4 fix behaviour this tree relies on: Escape on a
+dnl terminal without the kitty protocol, the tick deadline and the Windows
+dnl stdin-reader teardown, a quadratic paste in the textinput, and raw mode
+dnl entered before the first paint.
+PKG_CHECK_MODULES([BOBA], [boba >= 0.11.4])
 
 dnl Platform-specific socket libraries
 case "$host_os" in
