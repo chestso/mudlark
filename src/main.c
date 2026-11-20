@@ -19,6 +19,7 @@
 #include <termios.h>
 #include <unistd.h>
 #else
+#include <io.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -48,6 +49,11 @@
  * These hooks write sanitizer reports to files, and a signal handler restores
  * the terminal and points the user at the diagnostics before re-raising. */
 
+/* The stderr log's path, filled in once the TUI owns the screen (see
+ * redirect_stderr_to_log / the POSIX equivalent). Both platforms write it,
+ * so it lives outside the POSIX-only block. */
+static char g_log_path[512];
+
 #ifndef _WIN32
 /* Sanitizer reports -> files (survive the stderr redirect), with stacktraces. */
 const char *__asan_default_options(void)
@@ -63,7 +69,6 @@ const char *__ubsan_default_options(void)
 static struct termios g_saved_termios;
 static int g_have_saved_termios = 0;
 static volatile sig_atomic_t g_tui_started = 0;
-static char g_log_path[128];
 static char g_crash_msg[256];
 static int g_crash_msg_len = 0;
 
@@ -106,6 +111,35 @@ static void install_crash_handlers(void)
         sigaction(sigs[i], &sa, NULL);
 }
 #endif /* _WIN32 */
+
+#ifdef _WIN32
+/* Redirect stderr to a per-process log file under %TEMP%.
+ *
+ * boba's inline frame is a relative-cursor protocol: it tracks how many rows
+ * the frame occupies and erases them by moving the cursor up, so anything
+ * else that lands on the console between two frames is written AT the frame's
+ * cursor — it shifts the rows below it and strands the frame's divider row in
+ * the scrollback. On Windows stderr is the console (there is no shell
+ * redirection once the TUI owns the screen), so one log line ("[info]
+ * Loaded: lisp/init.lisp") is enough to walk the frame down the screen a row
+ * per repaint. POSIX redirects stderr here already; Windows does the same, to
+ * a path Windows can create. */
+static void redirect_stderr_to_log(void)
+{
+    char dir[MAX_PATH];
+    DWORD n = GetTempPathA((DWORD)sizeof(dir), dir);
+    if (n == 0 || n >= (DWORD)sizeof(dir))
+        return;
+    if (dir[n - 1] == '\\' || dir[n - 1] == '/')
+        dir[n - 1] = '\0';
+    snprintf(g_log_path, sizeof(g_log_path), "%s\\mudlark.%lu.log", dir,
+             (unsigned long)GetCurrentProcessId());
+    /* freopen closes the stream when it fails, so fall back to NUL rather
+     * than leave stderr dead. */
+    if (!freopen(g_log_path, "w", stderr))
+        (void)freopen("NUL", "w", stderr);
+}
+#endif
 
 /* Global state */
 static Telnet *g_telnet = NULL;
@@ -658,8 +692,13 @@ int main(int argc, char *argv[])
 
     /* From here the TUI owns the screen; redirect stderr to the log file so raw
      * diagnostics (sanitizer reports, libc messages) are captured instead of
-     * corrupting the display. Earlier fatal errors still reached the terminal. */
-#ifndef _WIN32
+     * corrupting the display. Earlier fatal errors still reached the terminal.
+     * On Windows stderr is the console, which the inline frame shares — see
+     * redirect_stderr_to_log(). */
+#ifdef _WIN32
+    if (_isatty(_fileno(stderr)))
+        redirect_stderr_to_log();
+#else
     if (isatty(STDERR_FILENO))
         freopen(g_log_path, "w", stderr);
 #endif
