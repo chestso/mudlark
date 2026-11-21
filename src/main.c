@@ -341,6 +341,22 @@ static void on_stdin_processed(void *user_data)
     g_tab_processed = 0;
 }
 
+/* Echo a submitted line to the scrollback in the user-input role. The
+ * live input row is part of the frame, and the next paint erases the
+ * frame, so a submitted line would otherwise leave no trace. */
+static void echo_user_line(const char *line)
+{
+    UiColor color;
+    if (lisp_x_get_color("*color-user-input*", &color) < 0)
+        color = UI_COLOR_USER_INPUT;
+    const char *echo_color = ui_fg_sgr(color);
+    const char *reset = ui_reset_sgr();
+    echo_to_viewport(echo_color, strlen(echo_color));
+    echo_to_viewport(line, strlen(line));
+    echo_to_viewport(reset, strlen(reset));
+    echo_to_viewport("\n", 1);
+}
+
 /* Process a submitted line */
 static void process_line(const char *line)
 {
@@ -352,7 +368,10 @@ static void process_line(const char *line)
     /* Check for command */
     if (line[0] == ':') {
         int was_connected = g_connected;
-        echo_to_viewport("\n", 1);
+        /* A colon command is local: this echo is the only record of what
+         * the user ran, and it must reach the transcript before `:q`
+         * switches the frame to its quitting shape. */
+        echo_user_line(line);
         process_command(line, g_telnet, &g_connected, &g_quit_requested,
                         g_term_cols, g_term_rows, echo_to_viewport);
         if (g_quit_requested && g_runtime) {
@@ -377,15 +396,7 @@ static void process_line(const char *line)
             echo_to_viewport("\n", 1);
         } else {
             /* Echo user input to the scrollback in the configured role */
-            UiColor color;
-            if (lisp_x_get_color("*color-user-input*", &color) < 0)
-                color = UI_COLOR_USER_INPUT;
-            const char *echo_color = ui_fg_sgr(color);
-            const char *reset = ui_reset_sgr();
-            echo_to_viewport(echo_color, strlen(echo_color));
-            echo_to_viewport(line, strlen(line));
-            echo_to_viewport(reset, strlen(reset));
-            echo_to_viewport("\n", 1);
+            echo_user_line(line);
         }
 
         /* Call user input filter hook — if consumed, skip transform+send */

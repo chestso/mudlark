@@ -9,6 +9,7 @@
 #      the next write continues it
 #   4. a width change reflows the frame without stranding its old rows
 #   5. a multi-line input grows the frame, and discarding it shrinks it back
+#   6. a submitted colon command stays in the scrollback after `:q` exits
 #
 # Exit code 77 = "skip" per autotools convention.
 
@@ -76,12 +77,13 @@ HEIGHT=30
 tmux new-session -d -s "$SESSION" -x "$WIDTH" -y "$HEIGHT" -c "$TOP_SRCDIR" \
 	sh -c "$MUDLARK_BIN 127.0.0.1 $PORT; sleep 60"
 tmux new-session -d -s "$BARE_SESSION" -x "$WIDTH" -y "$HEIGHT" -c "$TOP_SRCDIR" \
-	sh -c "$MUDLARK_BIN; sleep 60"
+	sh -c "$MUDLARK_BIN; echo AFTER-QUIT; sleep 60"
 sleep 1.0
 
 pane() { tmux capture-pane -p -t "$SESSION"; }
 scrollback() { tmux capture-pane -p -S - -t "$SESSION"; }
 bare_pane() { tmux capture-pane -p -t "$BARE_SESSION"; }
+bare_scrollback() { tmux capture-pane -p -S - -t "$BARE_SESSION"; }
 
 dump() {
 	echo "--- pane ---" >&2
@@ -188,6 +190,34 @@ if [ "$(echo "$SHRUNK" | wc -w)" != "1" ]; then
 	echo "FAIL: the frame did not shrink cleanly (dividers: $SHRUNK)" >&2
 	echo "--- bare pane ---" >&2
 	bare_pane >&2
+	exit 1
+fi
+
+# --- 6. A submitted colon command survives the quit frame ---------------
+
+# Colon commands are local, so their echo in the scrollback is the only
+# record of what was run — and the input row they were typed into is part
+# of the frame the quit path erases. The marker printed by the shell after
+# the client exits proves the frame is gone before the scrollback is read.
+tmux send-keys -t "$BARE_SESSION" ':q'
+sleep 0.2
+tmux send-keys -t "$BARE_SESSION" Enter
+for _ in $(seq 1 50); do
+	if bare_pane | grep -qF 'AFTER-QUIT'; then
+		break
+	fi
+	sleep 0.1
+done
+if ! bare_pane | grep -qF 'AFTER-QUIT'; then
+	echo "FAIL: the client did not exit on :q" >&2
+	echo "--- bare pane ---" >&2
+	bare_pane >&2
+	exit 1
+fi
+if ! bare_scrollback | grep -qF ':q'; then
+	echo "FAIL: the submitted :q did not reach the scrollback" >&2
+	echo "--- bare scrollback ---" >&2
+	bare_scrollback >&2
 	exit 1
 fi
 
