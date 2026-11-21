@@ -534,6 +534,18 @@ Example — send a command every 10 seconds:
 ;; SCRIPT STARTUP BANNERS
 ;; ============================================================================
 ;; Banner colors come from the Dracula palette in COLOR CONFIGURATION above.
+(defun script-echo--strip-cr (line)
+  "Drop the carriage return a CRLF source file leaves at `line`'s end.
+
+`script-echo` splits sections on \"\\n\" and appends its own row
+terminators, so a section string that came from a CRLF file (a Windows
+checkout, a hand-edited script) would otherwise carry a stray CR through
+the split and produce a blank row on every line."
+  (let ((n (length line)))
+    (if (and (> n 0) (char=? (string-ref line (- n 1)) #\return))
+      (substring line 0 (- n 1))
+      line)))
+
 (defun script-echo (title &rest args)
   "Print a styled script startup banner with optional description and sections.
 
@@ -572,7 +584,9 @@ Colors: header=pink, desc=cyan, section=purple, details=comment"
     ;; Output sections
     (do ((slist sections (cdr slist))) ((null? slist))
       (let* ((text (car slist))
-             (lines (string-split text "\n")))
+             (lines
+              (map (lambda (line) (script-echo--strip-cr line))
+               (string-split text "\n"))))
         (if (null? (cdr lines))
           ;; Single line section: render as detail
           (terminal-echo (concat "  " c-detail (car lines) reset "\r\n"))

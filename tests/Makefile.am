@@ -71,6 +71,7 @@ TESTS = \
     init-timers.lisp \
     init.lisp \
     practice.lisp \
+    script-echo.lisp \
     slash-commands.lisp \
     tintin-colors.lisp \
     tintin-commands.lisp \

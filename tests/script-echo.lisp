@@ -155,6 +155,25 @@
     "Has section detail"))
 
 ;; ============================================================================
+;; Test: CRLF section text does not leave blank rows
+;; ============================================================================
+;; A section string from a CRLF source file (a Windows checkout, a
+;; hand-edited script) splits on "\n" with a trailing CR left on every
+;; line. script-echo must drop it before appending its own "\r\n", or the
+;; transcript reads the stray CR plus the terminator as two row breaks and
+;; every announced line grows a blank row beneath it.
+(reset-output)
+(script-echo "App"
+  :section "Usage\r\ncmd1\r\ncmd2")
+(let ((out (get-output)))
+  (assert-false (contains? out "\r\r")
+    "CRLF section emits no doubled row breaks")
+  (assert-true (contains? out "[fg:189,147,249]Usage[reset]\r\n")
+    "Section title keeps a single row break")
+  (assert-true (contains? out "[fg:98,114,164]cmd1[reset]\r\n")
+    "Detail line keeps a single row break"))
+
+;; ============================================================================
 ;; Test: color->fg passes the optional ANSI16 slot through to termcap
 ;; ============================================================================
 ;; The slot is the fourth element of an (R G B SLOT) color list: it rides
