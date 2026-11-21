@@ -136,6 +136,13 @@
  "/help alpha shows title")
 (assert-true (terminal-output-contains? "An alpha test command")
  "/help alpha shows desc")
+;; On-demand help is a report, not a startup banner: each row goes out in
+;; its own terminal-echo, terminator included.
+(assert-true (> (length *terminal-echo-output*) 0) "/help alpha emits rows")
+(do ((msgs *terminal-echo-output* (cdr msgs))) ((null? msgs))
+  (let ((msg (car msgs)))
+    (assert-equal "\r\n" (substring msg (- (length msg) 2) (length msg))
+      "/help alpha row carries its own terminator")))
 
 ;; With leading slash
 (clear-terminal-output)

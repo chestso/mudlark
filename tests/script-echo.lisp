@@ -120,10 +120,24 @@
 (reset-output)
 (script-echo "Just Title")
 (let ((out (get-output)))
-  (assert-equal (length *terminal-output*) 2
-    "Just title produces 2 outputs (header + newline)")
+  (assert-equal (length *terminal-output*) 1
+    "Just title produces one output (row + terminator)")
   (assert-true (contains? out "Just Title")
     "Just title shows title"))
+
+;; ============================================================================
+;; Test: every row carries its own terminator
+;; ============================================================================
+;; A row must not lean on the next write to close it: script-echo (through
+;; echo-styled-page) appends the "\r\n" to the row it terminates, in the
+;; same terminal-echo call.
+(reset-output)
+(script-echo "App" :desc "a description" :section "Usage\ncmd1\ncmd2")
+(do ((msgs *terminal-output* (cdr msgs))) ((null? msgs))
+  (let ((msg (car msgs)))
+    (assert-true (>= (length msg) 2) "row has room for a terminator")
+    (assert-equal "\r\n" (substring msg (- (length msg) 2) (length msg))
+      "row carries its own terminator")))
 
 ;; ============================================================================
 ;; Test: Indentation levels

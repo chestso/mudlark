@@ -568,6 +568,46 @@
 
 (print "Test 33 passed: unclosed-brace dispatch")
 
+;; ============================================================================
+;; Test 34: a failed -t read is one row, terminator included
+;; ============================================================================
+;; The CLI handler reports a failed read itself. A report is not a startup
+;; banner, so it goes out as one terminal-echo row carrying its own "\r\n"
+;; rather than through script-echo.
+(reset-aliases)
+(tintin-cli-read-handler "no-such-config.tin")
+(let ((msg (car (reverse *echoed*))))
+  (assert-true (string? msg) "failed read echoes a message")
+  (assert-true (string-index msg "Failed to read 'no-such-config.tin'")
+    "failed read names the file in quotes")
+  (assert-true (string-index msg "cannot open file")
+    "failed read carries the open error")
+  (assert-equal "\r\n" (substring msg (- (length msg) 2) (length msg))
+    "failed read ends its own row"))
+
+(print "Test 34 passed: failed -t read ends its row")
+
+;; ============================================================================
+;; Test 35: a successful -t read is one report row, terminator included
+;; ============================================================================
+;; The success summary is a load report too, not a startup banner: same
+;; single-row, own-terminator shape as the failure above.
+(reset-aliases)
+(let ((path (concat tmpdir "/mudlark-cli-read-test.tin")))
+  (let ((f (open path "w")))
+    (write-line f "#alias {zz} {kill}")
+    (close f))
+  (tintin-cli-read-handler path)
+  (delete-file path)
+  (let ((msg (car (reverse *echoed*))))
+    (assert-true (string? msg) "successful read echoes a summary")
+    (assert-true (string-index msg "Read '") "summary names the file in quotes")
+    (assert-true (string-index msg "1 alias") "summary counts the alias")
+    (assert-equal "\r\n" (substring msg (- (length msg) 2) (length msg))
+      "summary ends its own row")))
+
+(print "Test 35 passed: successful -t read ends its row")
+
 ;; Cleanup
 (set! *tintin-custom-colors* (make-hash-table))
 (set! *tintin-aliases* (make-hash-table))

@@ -227,15 +227,21 @@
       (set! *tintin-reading-file* #t)
       (condition-case err
         (progn (tintin-read-file path) (set! *tintin-reading-file* #f)
-          (script-echo
-           (concat "Read " path
+          ;; A load report, not a startup banner: one row of its own, like
+          ;; #read's summary and the failure below.
+          (terminal-echo
+           (concat "Read '" path "'"
             (tintin-read-summary (- (hash-count *tintin-aliases*) prev-aliases)
              (- (hash-count *tintin-highlights*) prev-highlights)
              (- (hash-count *tintin-actions*) prev-actions)
              (- (hash-count *tintin-variables*) prev-variables)
-             (- (hash-count *tintin-custom-colors*) prev-colors)))))
+             (- (hash-count *tintin-custom-colors*) prev-colors))
+            "\r\n")))
+        ;; A failure is a report, not a banner: one row with its own
+        ;; terminator, like #read's error path.
         (error (set! *tintin-reading-file* #f)
-         (script-echo (concat "Failed to read " path ": " (error-message err))))))))
+         (terminal-echo
+          (concat "Failed to read '" path "': " (error-message err) "\r\n")))))))
 
 (register-cli-handler "t" "tintin" 'tintin-cli-read-handler)
 

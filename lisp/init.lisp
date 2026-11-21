@@ -537,7 +537,7 @@ Example — send a command every 10 seconds:
 (defun script-echo--strip-cr (line)
   "Drop the carriage return a CRLF source file leaves at `line`'s end.
 
-`script-echo` splits sections on \"\\n\" and appends its own row
+`echo-styled-page` splits sections on \"\\n\" and appends its own row
 terminators, so a section string that came from a CRLF file (a Windows
 checkout, a hand-edited script) would otherwise carry a stray CR through
 the split and produce a blank row on every line."
@@ -546,41 +546,26 @@ the split and produce a blank row on every line."
       (substring line 0 (- n 1))
       line)))
 
-(defun script-echo (title &rest args)
-  "Print a styled script startup banner with optional description and sections.
+(defun echo-styled-page (title desc sections)
+  "Echo a styled page: a header row, then each section's rows.
 
-Each keyword takes exactly one string argument. Use newlines for multiline content.
+The header row carries the optional description after an em dash. Every
+row leaves in its own `terminal-echo`, terminator included, so the inline
+seam never has to close an open row for us on the next write.
 
-Usage:
-  (script-echo \"Title\")
-  (script-echo \"Title\" :desc \"short description\")
-  (script-echo \"Title\"
-    :desc \"description\"
-    :section \"Usage\\ncmd1\\ncmd2\"
-    :section \"Features\\nfeature1\\nfeature2\")
-
-Colors: header=pink, desc=cyan, section=purple, details=comment"
+This is the delivery used by both `script-echo` (startup banners) and
+on-demand pages such as `/help <cmd>`: what they announce differs, how
+the bytes reach the terminal does not."
   (let ((c-header (color->fg *color-script-header*))
         (c-desc (color->fg *color-script-desc*))
         (c-section (color->fg *color-script-section*))
         (c-detail (color->fg *color-script-detail*))
         (c-mdash (color->fg *color-script-mdash*))
-        (reset (termcap 'reset))
-        (desc nil)
-        (sections nil))
-    ;; Parse args: each keyword takes exactly one string argument
-    (do ((rest args (cdr rest))) ((null? rest))
-      (let ((item (car rest)))
-        (cond
-          ((eq? item :desc) (set! rest (cdr rest))
-           (when rest (set! desc (car rest))))
-          ((eq? item :section) (set! rest (cdr rest))
-           (when rest (set! sections (cons (car rest) sections)))))))
-    (set! sections (reverse sections))
-    ;; Output header line
-    (terminal-echo (concat c-header title reset))
-    (when desc (terminal-echo (concat c-mdash " — " reset c-desc desc reset)))
-    (terminal-echo "\r\n")
+        (reset (termcap 'reset)))
+    ;; Header row: the description rides it, in its own color
+    (terminal-echo
+     (concat c-header title reset
+      (if desc (concat c-mdash " — " reset c-desc desc reset) "") "\r\n"))
     ;; Output sections
     (do ((slist sections (cdr slist))) ((null? slist))
       (let* ((text (car slist))
@@ -595,6 +580,36 @@ Colors: header=pink, desc=cyan, section=purple, details=comment"
             (terminal-echo (concat "  " c-section (car lines) reset "\r\n"))
             (do ((dlist (cdr lines) (cdr dlist))) ((null? dlist))
               (terminal-echo (concat "    " c-detail (car dlist) reset "\r\n")))))))))
+
+(defun script-echo (title &rest args)
+  "Print a styled script startup banner with optional description and sections.
+
+Each keyword takes exactly one string argument. Use newlines for multiline content.
+
+Usage:
+  (script-echo \"Title\")
+  (script-echo \"Title\" :desc \"short description\")
+  (script-echo \"Title\"
+    :desc \"description\"
+    :section \"Usage\\ncmd1\\ncmd2\"
+    :section \"Features\\nfeature1\\nfeature2\")
+
+Colors: header=pink, desc=cyan, section=purple, details=comment
+
+Startup banners only. Anything produced in response to a command is a
+report, not a banner, and goes out through `terminal-echo` directly."
+  (let ((desc nil)
+        (sections nil))
+    ;; Parse args: each keyword takes exactly one string argument
+    (do ((rest args (cdr rest))) ((null? rest))
+      (let ((item (car rest)))
+        (cond
+          ((eq? item :desc) (set! rest (cdr rest))
+           (when rest (set! desc (car rest))))
+          ((eq? item :section) (set! rest (cdr rest))
+           (when rest (set! sections (cons (car rest) sections)))))))
+    (set! sections (reverse sections))
+    (echo-styled-page title desc sections)))
 
 ;; ============================================================================
 ;; SLASH COMMAND SYSTEM
@@ -685,17 +700,14 @@ Colors: header=pink, desc=cyan, section=purple, details=comment"
             (#t matches)))))))
 
 (defun slash-command-show-help (name)
-  "Display detailed help for a slash command via script-echo."
+  "Display detailed help for a slash command.
+
+On-demand output, so the rows go out through `terminal-echo` (see
+`echo-styled-page`); `script-echo` is for startup banners."
   (let ((entry (hash-ref *slash-commands* name)))
     (when entry
-      (let ((title (list-ref entry 1))
-            (desc (list-ref entry 2))
-            (sections (list-ref entry 3)))
-        (let ((banner-args (list title)))
-          (when desc (set! banner-args (append banner-args (list :desc desc))))
-          (do ((sl sections (cdr sl))) ((null? sl))
-            (set! banner-args (append banner-args (list :section (car sl)))))
-          (apply script-echo banner-args))))))
+      (echo-styled-page (list-ref entry 1) (list-ref entry 2)
+       (list-ref entry 3)))))
 
 (defun slash-command-list-all ()
   "Display a summary of all registered slash commands."
