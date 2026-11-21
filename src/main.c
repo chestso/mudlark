@@ -19,6 +19,7 @@
 #include <termios.h>
 #include <unistd.h>
 #else
+#include <fcntl.h>
 #include <io.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -282,7 +283,15 @@ static size_t get_telnet_fds(TuiIoSource *out, size_t cap, void *user_data)
         return 0;
     out[0].handle = telnet_get_socket(g_telnet);
     out[0].flags = TUI_IO_READ;
+    /* The runtime's platform decides how the handle is waited on: a
+     * SOCKET goes through WSAEventSelect, a POSIX fd through poll. A
+     * bare TUI_SRC_FD on Windows would hand the socket to
+     * WaitForMultipleObjects as if it were a HANDLE. */
+#ifdef _WIN32
+    out[0].kind = TUI_SRC_SOCKET;
+#else
     out[0].kind = TUI_SRC_FD;
+#endif
     return 1;
 }
 
@@ -525,6 +534,13 @@ int main(int argc, char *argv[])
 {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
+    /* boba owns the terminal and writes raw VT bytes, including the \r of
+     * every \r\n row break. The CRT's text mode would rewrite each \n as
+     * \r\n, so the terminal would receive \r\r\n — the bytes boba staged
+     * are not the bytes that arrive, and an escape sequence whose payload
+     * carries a newline (the graphics protocols) would be corrupted.
+     * Binary mode keeps the delivery byte-exact. */
+    _setmode(_fileno(stdout), _O_BINARY);
 #endif
 
     const char *hostname = NULL;
