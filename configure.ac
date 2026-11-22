@@ -99,7 +99,7 @@ dnl Check for boba
 dnl boba's runtime API is not stable across releases (the I/O-source seam,
 dnl TuiColor carriers, the textinput geometry reset), so the floor is the
 dnl release this tree compiles against — again matched by the CI pin.
-dnl 0.11.4 is the floor: 0.11.0 is where tui_msg_stream_text() took a
+dnl 0.11.5 is the floor: 0.11.0 is where tui_msg_stream_text() took a
 dnl TuiStreamReading (TUI_STREAM_LINES / TUI_STREAM_TERMINAL), the 0.10.0
 dnl `_ex` twin having been folded away, and the older three-argument call no
 dnl longer exists. The transcript's commit pass (0.10.1) also owns the UTF-8
@@ -107,8 +107,11 @@ dnl tail and the SGR state, which is what lets echo() hand over a chunk cut
 dnl anywhere. 0.11.1–0.11.4 fix behaviour this tree relies on: Escape on a
 dnl terminal without the kitty protocol, the tick deadline and the Windows
 dnl stdin-reader teardown, a quadratic paste in the textinput, and raw mode
-dnl entered before the first paint.
-PKG_CHECK_MODULES([BOBA], [boba >= 0.11.4])
+dnl entered before the first paint. 0.11.5 adds the kitty width rule, which
+dnl TERM=xterm-kitty now installs by itself, so a variation selector measures
+dnl against the codepoint it follows and server text paints the width kitty
+dnl draws.
+PKG_CHECK_MODULES([BOBA], [boba >= 0.11.5])
 
 dnl Platform-specific socket libraries
 case "$host_os" in
