@@ -1445,7 +1445,7 @@ static void register_builtins(Environment *env)
         "Usage:\n"
         "- `(termcap 'cols)` - terminal width\n"
         "- `(termcap 'rows)` - terminal height\n"
-        "- `(termcap 'width-model)` - cell-width model boba pinned (\"grid\", \"wcwidth\", \"uts51\")\n"
+        "- `(termcap 'width-model)` - cell-width model boba pinned (\"grid\", \"wcwidth\", \"uts51\", \"kitty\")\n"
         "- `(termcap 'truecolor?)` - t if the terminal can show 24-bit color\n"
         "- `(termcap 'reset)` - SGR reset escape sequence\n"
         "- `(termcap 'fg-color r g b [slot])` - foreground color escape sequence\n"

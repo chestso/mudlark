@@ -742,10 +742,10 @@ int main(int argc, char *argv[])
 #endif
 
     /* The color tier, from boba's profile: `truecolor` is
-     * environment-derived and final from probe start, so one seed per
-     * process describes the whole session. Everything formatted below
-     * (the banner, the divider, echoed input, log lines) reads it. */
-    ui_set_truecolor(tui_runtime_terminal_profile(g_runtime)->truecolor);
+     * environment-derived and final from probe start, so this profile
+     * describes the whole session. Everything formatted below (the
+     * banner, the divider, echoed input, log lines) reads through it. */
+    ui_set_terminal_profile(tui_runtime_terminal_profile(g_runtime));
 
     /* Create default session and load init.lisp now that TUI is ready
      * (needs terminal-echo, termcap, etc.) */

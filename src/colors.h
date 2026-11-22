@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include <boba/style.h>
+#include <boba/terminal_profile.h>
 
 /* ------------------------------------------------------------------ */
 /* The color role                                                      */
@@ -124,14 +125,14 @@ typedef struct
 /* The tier                                                            */
 /* ------------------------------------------------------------------ */
 
-/* Seed the tier from boba's terminal profile. main.c calls this once, right
- * after the flush that starts the capability probe: `truecolor` is
- * environment-derived and final from probe start, so one seed per process
- * describes the whole session. Before it is called the low tier is assumed,
- * which is the safe direction to be wrong in. */
-void ui_set_truecolor(int truecolor);
+/* Point the tier at boba's terminal profile. main.c passes
+ * tui_runtime_terminal_profile() once the runtime exists; the profile
+ * outlives every call. Until it is called the low tier is assumed, which
+ * is the safe direction to be wrong in. Tests register a hand-built
+ * profile instead of a runtime. */
+void ui_set_terminal_profile(const TuiTerminalProfile *profile);
 
-/* 1 = the terminal was reported (or seeded) as truecolor. */
+/* 1 = the registered profile reports truecolor. */
 int ui_truecolor(void);
 
 /* The role in the tier in force, for boba styles and row sinks. */

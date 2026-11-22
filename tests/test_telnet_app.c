@@ -749,10 +749,19 @@ static void test_runtime_sends_window_size(void)
  * slot below it, and nothing else.
  * ======================================================================== */
 
+/* The tier helpers read the terminal profile; a test needs only the field
+ * they answer, so register a hand-built profile rather than a runtime. */
+static void use_truecolor(int on)
+{
+    static TuiTerminalProfile profile;
+    profile.truecolor = on;
+    ui_set_terminal_profile(&profile);
+}
+
 /* The divider's role paints as 24-bit RGB when the profile says truecolor. */
 static void test_border_color_is_rgb_when_truecolor(void)
 {
-    ui_set_truecolor(1);
+    use_truecolor(1);
     TelnetAppModel *app = create_test_app();
     telnet_app_set_border_color(app, UI_COLOR_DIVIDER_CONNECTED);
 
@@ -763,14 +772,14 @@ static void test_border_color_is_rgb_when_truecolor(void)
 
     dynamic_buffer_destroy(out);
     test_app_free(app);
-    ui_set_truecolor(0);
+    use_truecolor(0);
 }
 
 /* Below truecolor the same role paints as its ANSI16 slot: bright green,
  * which SGR spells 92. */
 static void test_border_color_is_a_slot_without_truecolor(void)
 {
-    ui_set_truecolor(0);
+    use_truecolor(0);
     TelnetAppModel *app = create_test_app();
     telnet_app_set_border_color(app, UI_COLOR_DIVIDER_CONNECTED);
 
@@ -793,11 +802,11 @@ static void test_ui_color_tier_selection(void)
 {
     UiColor cyan = UI_COLOR_USER_INPUT; /* 139 233 253, slot 14 */
 
-    ui_set_truecolor(1);
+    use_truecolor(1);
     assert(ui_tui_color(cyan).type == TUI_COLOR_RGB);
     assert(strcmp(ui_fg_sgr(cyan), "\x1b[38;2;139;233;253m") == 0);
 
-    ui_set_truecolor(0);
+    use_truecolor(0);
     assert(ui_tui_color(cyan).type == TUI_COLOR_ANSI16);
     assert(ui_tui_color(cyan).v.ansi == 14);
     /* Slot 14 is bright cyan: fg 90+6 = 96, bg 100+6 = 106. */
